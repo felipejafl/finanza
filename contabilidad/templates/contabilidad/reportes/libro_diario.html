@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Libro Diario{% endblock %}
+
+{% block content %}
+    <h1>Libro Diario</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Cuenta Acreedora</th>
+                <th>Debe</th>
+                <th>Cuenta Deudora</th>
+                <th>Haber</th>
+                <th>Descripción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for asiento in asientos %}
+            <tr>
+                <td>{{ asiento.fecha }}</td>
+                <td>{{ asiento.cuenta_acreedora }}</td>
+                <td>{{ asiento.debe }}</td>
+                <td>{{ asiento.cuenta_deudora }}</td>
+                <td>{{ asiento.haber }}</td>
+                <td>{{ asiento.descripcion }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

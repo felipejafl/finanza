@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Crear Transacción Financiera{% endblock %}
+
+{% block content %}
+    <h1>Crear Transacción Financiera</h1>
+    <form method="post">
+        <div class="form-group">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+    </form>
+{% endblock %}

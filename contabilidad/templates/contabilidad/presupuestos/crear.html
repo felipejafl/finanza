@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Crear Presupuesto Financiero{% endblock %}
+
+{% block content %}
+    <h1>Crear Presupuesto Financiero</h1>
+    <form method="post">
+        <div class="form-group">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+    </form>
+{% endblock %}

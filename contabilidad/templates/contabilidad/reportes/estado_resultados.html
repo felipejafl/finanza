@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Estado de Resultados{% endblock %}
+
+{% block content %}
+    <h1>Estado de Resultados</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Ingreso</th>
+                <th>Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item_ingreso in ingresos %}
+            <tr>
+                <td>{{ item_ingreso.0 }}</td>
+                <td>{{ item_ingreso.1 }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <th>Total Ingresos</th>
+                <th>{{ total_ingresos }}</th>
+            </tr>
+        </tbody>
+    </table>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Gasto</th>
+                <th>Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item_gasto in gastos %}
+            <tr>
+                <td>{{ item_gasto.0 }}</td>
+                <td>{{ item_gasto.1 }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <th>Total Gastos</th>
+                <th>{{ total_gastos }}</th>
+            </tr>
+        </tbody>
+    </table>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Utilidad Neta</th>
+                <th>Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Utilidad Neta</td>
+                <td>{{ utilidad_neta }}</td>
+            </tr>
+        </tbody>
+    </table>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Balance General{% endblock %}
+
+{% block content %}
+    <h1>Balance General</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>cuentas</th>
+                <th>Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Keily</td>
+                <td>{{ Keily }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <th>Jose</th>
+                <th>{{ Jose }}</th>
+            </tr>
+        </tbody>
+        <tfooter>
+            <p>Total: {{ Total }}</p>   
+        </tfooter>
+    </table>
+
+    
+{% endblock %}
