@@ -3,6 +3,8 @@
 
 {% block content %}
 <h1>Listado de Transacciones</h1>
+<a href="{% url 'transaccion_crear' %}" class="btn btn-success">Crear nueva transaccion</a>
+
 <table id="transacciones-table" class="table table-striped table-bordered">
     <thead>
         <tr>
@@ -18,7 +20,6 @@
         <!-- Las filas serán agregadas dinámicamente por DataTables -->
     </tbody>
 </table>
-<a href="{% url 'transaccion_crear' %}" class="btn btn-success">Crear nueva transaccion</a>
 
 {% endblock %}
 

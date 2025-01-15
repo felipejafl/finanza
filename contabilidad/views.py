@@ -107,8 +107,21 @@ def transaccion_eliminar(request, pk):
     return redirect('transaccion_listar')
 
 def presupuesto_listar(request):
+    # Obtener todos los presupuestos
     presupuestos = Presupuesto.objects.all()
-    total = presupuestos.aggregate(Sum('importe'))['importe__sum']
+
+    # Obtener la suma de los importes de la categoría "Salario"
+    salario = presupuestos.filter(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum']
+    salario_importe = salario if salario else 0
+
+    # Calcular la suma de todas las demás categorías excluyendo "Salario"
+    total_otros = presupuestos.exclude(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum']
+    total_otros = total_otros if total_otros else 0
+
+    # Calcular el total final
+    total = total_otros - salario_importe
+
+    # Contexto para la plantilla
     context = {
         'presupuestos': presupuestos,
         'total': total,

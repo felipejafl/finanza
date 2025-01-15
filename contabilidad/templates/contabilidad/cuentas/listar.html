@@ -4,6 +4,7 @@
 
 {% block content %}
 <h1>Listado de Cuentas</h1>
+<a href="{% url 'cuenta_crear' %}" class="btn btn-success">Crear nueva cuenta</a>
 
 <table class="table table-striped table-hover">
   <thead>
@@ -31,5 +32,4 @@
   </tbody>
 </table>
 
-<a href="{% url 'cuenta_crear' %}" class="btn btn-success">Crear nueva cuenta</a>
 {% endblock %}

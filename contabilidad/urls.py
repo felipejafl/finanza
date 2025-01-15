@@ -26,7 +26,7 @@ from .views import (
 )
 
 urlpatterns = [
-    path('contabilidad/', inicio, name='inicio'),
+    path('', inicio, name='inicio'),
 
     path('cuentas/', cuenta_listar, name='cuenta_listar'),
     path('cuentas/crear/', cuenta_crear, name='cuenta_crear'),
