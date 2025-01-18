@@ -17,8 +17,7 @@ from .views import (
     categoria_eliminar,
     reporte_balance_general,
     reporte_estado_resultados,
-    reporte_mayor_cuentas,
-    reporte_libro_diario,
+    reporte_presupuesto_mensual,
     presupuesto_listar,
     presupuesto_crear,
     presupuesto_editar,
@@ -52,6 +51,5 @@ urlpatterns = [
 
     path('reportes/balance-general/', reporte_balance_general, name='reporte_balance_general'),
     path('reportes/estado-resultados/', reporte_estado_resultados, name='reporte_estado_resultados'),
-    path('reportes/mayor-cuentas/', reporte_mayor_cuentas, name='reporte_mayor_cuentas'),
-    path('reportes/libro-diario/', reporte_libro_diario, name='reporte_libro_diario'),
+    path('reportes/presupuesto-mensual/', reporte_presupuesto_mensual, name='reporte_presupuesto_mensual'),
 ]

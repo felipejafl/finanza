@@ -4,7 +4,7 @@ from .models import Transaccion
 class TransaccionSerializer(serializers.ModelSerializer):
     categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True)
     cuenta_nombre = serializers.CharField(source='cuenta.nombre', read_only=True)
-
+    fecha = serializers.DateField(format='%d-%m-%Y', input_formats=['%Y-%m-%d'])
     class Meta:
         model = Transaccion
         fields = ['id', 'fecha', 'descripcion', 'importe', 'categoria_nombre', 'cuenta_nombre']

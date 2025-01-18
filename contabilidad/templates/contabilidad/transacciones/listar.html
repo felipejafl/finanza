@@ -23,7 +23,7 @@
 
 {% endblock %}
 
-{% block extra_js %}
+{% block js %}
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script>
@@ -43,14 +43,15 @@
                     data: "id", // Utilizamos el ID para generar los enlaces
                     render: function (data, type, row) {
                         return `
-                            <a href="/transacciones/editar/${data}/" class="btn btn-sm btn-primary">Editar</a>
-                            <a href="/transacciones/eliminar/${data}/" class="btn btn-sm btn-danger">Eliminar</a>
+                            <a href="/transacciones/${data}/editar/" class="btn btn-sm btn-primary">Editar</a>
+                            <a href="/transacciones/${data}/eliminar/" class="btn btn-sm btn-danger">Eliminar</a>
                         `;
                     },
                     orderable: false, // No permitir ordenar esta columna
                     searchable: false // No permitir buscar en esta columna
                 }
             ],
+            order: [[1, 'desc']],
             responsive: true,
             paging: true,
             searching: true,

@@ -4,12 +4,10 @@ from .forms import UploadFileForm  # Formulario para subir archivos
 from .tasks import importar_transacciones  # Tarea Celery para importar (opcional)
 from .models import Cuenta, Transaccion, Categoria, Presupuesto
 from django.db.models import Sum
+from datetime import date
 from django.contrib import messages
 from .forms import CuentaForm, PresupuestoForm, CategoriaForm, TransaccionForm
-from django.core.paginator import Paginator
-from django.utils import timezone
-from django.db.models import Q
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 
 # Create your views here.
 def inicio(request):
@@ -165,6 +163,53 @@ def presupuesto_eliminar(request, pk):
     messages.success(request, 'Presupuesto eliminada correctamente.')
     return redirect('presupuesto_listar')
 
+def reporte_presupuesto_mensual(request):
+    # Obtener mes y año actual por defecto
+    hoy = date.today()
+    mes_actual = int(request.GET.get('mes', hoy.month))  # Mes seleccionado o actual
+    año_actual = int(request.GET.get('año', hoy.year))  # Año seleccionado o actual
+
+    # Obtener el presupuesto anual por categoría
+    presupuestos = Presupuesto.objects.all()
+
+    # Preparar los datos del reporte
+    reporte = []
+    for presupuesto in presupuestos:
+        # Calcular presupuesto mensual
+        presupuesto_mensual = presupuesto.importe / 12
+
+        # Calcular la ejecución real (transacciones realizadas en el mes y año seleccionados)
+        ejecucion_real = Transaccion.objects.filter(
+            categoria=presupuesto.categoria,
+            fecha__year=año_actual,
+            fecha__month=mes_actual
+        ).aggregate(total=Sum('importe'))['total'] or 0
+
+        # Calcular la variación (presupuesto mensual - ejecución real)
+        variacion = presupuesto_mensual - ejecucion_real
+
+        # Calcular porcentaje de ejecución
+        porcentaje_ejecucion = (ejecucion_real / presupuesto_mensual * 100) if presupuesto_mensual > 0 else 0
+
+        # Agregar datos al reporte
+        reporte.append({
+            'categoria': presupuesto.categoria.nombre,
+            'presupuesto_anual': presupuesto.importe,
+            'presupuesto_mensual': presupuesto_mensual,
+            'ejecucion_real': ejecucion_real,
+            'variacion': variacion,
+            'porcentaje_ejecucion': porcentaje_ejecucion,
+        })
+
+    context = {
+        'reporte': reporte,
+        'mes_actual': mes_actual,
+        'año_actual': año_actual,
+        'meses': range(1, 13),  # Lista de meses (1-12)
+        'años': range(hoy.year - 5, hoy.year + 1),  # Últimos 5 años
+    }
+    return render(request, 'contabilidad/reportes/presupuesto_mensual.html', context)
+
 
 def categoria_listar(request):
     categorias = Categoria.objects.all()
@@ -211,59 +256,60 @@ def categoria_eliminar(request, pk):
     return redirect('categoria_listar')
 
 #Reportes
+
 def reporte_balance_general(request):
-    # Calcular saldos de Keily
-    cuentas_keily = Cuenta.objects.all().annotate(importe=Sum('transaccion_Keily_Ing') - Sum('transaccion_Keily_Gas'))
-    # Calcular saldos de JOSE
-    cuentas_jose = Cuenta.objects.all().annotate(importe=Sum('transaccion_Jose_Ing') - Sum('transaccion_Jose_Gas'))
-    # Saldo Total
-    total_cuentas= cuentas_keily + cuentas_jose
-    
+    # Calcular ingresos totales
+    cuentas_ingreso = Cuenta.objects.filter(tipo='ingreso')
+    saldo_ingresos = cuentas_ingreso.aggregate(saldo_total=Sum('saldo'))['saldo_total'] or 0
+    transacciones_ingresos = Transaccion.objects.filter(cuenta__tipo='ingreso').aggregate(total=Sum('importe'))['total'] or 0
+    total_ingresos = saldo_ingresos + transacciones_ingresos
+
+    # Calcular gastos totales
+    cuentas_gasto = Cuenta.objects.filter(tipo='gasto')
+    saldo_gastos = cuentas_gasto.aggregate(saldo_total=Sum('saldo'))['saldo_total'] or 0
+    transacciones_gastos = Transaccion.objects.filter(cuenta__tipo='gasto').aggregate(total=Sum('importe'))['total'] or 0
+    total_gastos = saldo_gastos + transacciones_gastos
+
+    # Balance final (ingresos - gastos)
+    balance_total = total_ingresos - total_gastos
+
     context = {
-        'keily': cuentas_keily,
-        'Jose': cuentas_jose,
-        'Total': total_cuentas,
+        'saldo_ingresos': saldo_ingresos,
+        'transacciones_ingresos': transacciones_ingresos,
+        'total_ingresos': total_ingresos,
+        'saldo_gastos': saldo_gastos,
+        'transacciones_gastos': transacciones_gastos,
+        'total_gastos': total_gastos,
+        'balance_total': balance_total,
     }
     return render(request, 'contabilidad/reportes/balance_general.html', context)
 
 def reporte_estado_resultados(request):
     # Calcular ingresos
-    ingresos = Transaccion.objects.filter(tipo=Transaccion.TIPO_INGRESO).aggregate(total=Sum('importe'))
-    total_ingresos = ingresos['total'] or 0
+    cuentas_ingreso = Cuenta.objects.filter(tipo='ingreso')
+    saldo_ingresos = cuentas_ingreso.aggregate(saldo_total=Sum('saldo'))['saldo_total'] or 0
+    transacciones_ingresos = Transaccion.objects.filter(cuenta__tipo='ingreso').aggregate(total=Sum('importe'))['total'] or 0
+    total_ingresos = saldo_ingresos + transacciones_ingresos
 
     # Calcular gastos
-    gastos = Transaccion.objects.filter(tipo=Transaccion.TIPO_GASTO).aggregate(total=Sum('importe'))
-    total_gastos = gastos['total'] or 0
+    cuentas_gasto = Cuenta.objects.filter(tipo='gasto')
+    saldo_gastos = cuentas_gasto.aggregate(saldo_total=Sum('saldo'))['saldo_total'] or 0
+    transacciones_gastos = Transaccion.objects.filter(cuenta__tipo='gasto').aggregate(total=Sum('importe'))['total'] or 0
+    total_gastos = saldo_gastos + transacciones_gastos
 
     # Calcular utilidad neta
     utilidad_neta = total_ingresos - total_gastos
 
     context = {
-        'ingresos': ingresos,
+        'saldo_ingresos': saldo_ingresos,
+        'transacciones_ingresos': transacciones_ingresos,
         'total_ingresos': total_ingresos,
-        'gastos': gastos,
+        'saldo_gastos': saldo_gastos,
+        'transacciones_gastos': transacciones_gastos,
         'total_gastos': total_gastos,
         'utilidad_neta': utilidad_neta,
     }
     return render(request, 'contabilidad/reportes/estado_resultados.html', context)
-
-def reporte_mayor_cuentas(request):
-    # Obtener movimientos de todas las cuentas
-    movimientos = Transaccion.objects.select_related('cuenta_acreedora', 'cuenta_deudora').order_by('fecha')
-
-    context = {
-        'movimientos': movimientos,
-    }
-    return render(request, 'contabilidad/reportes/mayor_cuentas.html', context)
-
-def reporte_libro_diario(request):
-    # Obtener asientos de todas las transacciones
-    asientos = Transaccion.objects.select_related('cuenta_acreedora', 'cuenta_deudora').order_by('fecha')
-
-    context = {
-        'asientos': asientos,
-    }
-    return render(request, 'contabilidad/reportes/libro_diario.html', context)
 
 from .importarDB import importar_transacciones  # Función de importación
 def importar_datos(request):

@@ -1,3 +1,4 @@
+from datetime import date
 from django import forms
 from .models import Cuenta, Categoria, Presupuesto, Transaccion
 
@@ -16,7 +17,13 @@ class CategoriaForm(forms.ModelForm):
 
 class TransaccionForm(forms.ModelForm):
     cuenta = forms.ModelChoiceField(queryset=Cuenta.objects.all(), label='Cuenta')
-    fecha = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'},format='%Y-%m-%d'), label='Fecha')
+    fecha = forms.DateField(
+        widget=forms.DateInput(
+            attrs={
+                'type': 'date', 
+                'class': 'form-control',
+                'value': date.today().strftime('%Y-%m-%d')
+            }), label='Fecha')
     categoria = forms.ModelChoiceField(queryset=Categoria.objects.all(), required=False, label='Categoría')
     importe = forms.DecimalField(label='Importe')
     descripcion = forms.CharField(label='Descripción')
