@@ -5,6 +5,8 @@
 
 {% block content %}
     <h1>Crear Transacción Financiera</h1>
+    <a href="{% url 'categoria_crear' %}" class="btn btn-success">Crear nueva categoría</a>
+
     <form method="post">
         <div class="form-group">
         {% csrf_token %}

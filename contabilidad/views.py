@@ -1,17 +1,70 @@
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from .forms import UploadFileForm  # Formulario para subir archivos
 from .tasks import importar_transacciones  # Tarea Celery para importar (opcional)
 from .models import Cuenta, Transaccion, Categoria, Presupuesto
 from django.db.models import Sum
+from datetime import datetime
 from datetime import date
+from django.db.models.functions import TruncMonth, TruncYear
 from django.contrib import messages
 from .forms import CuentaForm, PresupuestoForm, CategoriaForm, TransaccionForm
 
 
 # Create your views here.
 def inicio(request):
-    return render(request, 'contabilidad/index.html')
+    # Fecha actual
+    MESES = {
+        1: 'Enero',
+        2: 'Febrero',
+        3: 'Marzo',
+        4: 'Abril', 
+        5: 'Mayo',
+        6: 'Junio',
+        7: 'Julio',
+        8: 'Agosto',
+        9: 'Septiembre',
+        10: 'Octubre',
+        11: 'Noviembre',
+        12: 'Diciembre'
+    }
+    hoy = date.today()
+    mes_actual = MESES[hoy.month]
+    año_actual = hoy.year
+
+    cuentas = Cuenta.objects.filter(tipo='ingreso')
+    saldo_ingresos = cuentas.aggregate(saldo_total=Sum('saldo'))['saldo_total'] or 0
+    ingresos_totales = calcular_ingresos(anio=datetime.now().year) + saldo_ingresos
+    ingreso_mes = calcular_ingresos(mes=datetime.now().month, anio=datetime.now().year) 
+    gastos_totales = calcular_gastos(anio=datetime.now().year)
+    gastos_mes = calcular_gastos(mes=datetime.now().month, anio=datetime.now().year)
+    beneficio_total = calcular_beneficio(anio=datetime.now().year) + saldo_ingresos
+    beneficio_mes = calcular_beneficio(mes=datetime.now().month, anio=datetime.now().year)
+    presupuesto_salario = Presupuesto.objects.filter(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum']
+    presupuesto_otros = Presupuesto.objects.exclude(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum']
+    presupuesto_beneficio = presupuesto_salario - presupuesto_otros
+    importes_por_categoria = calcular_importes_por_categoria(mes=datetime.now().month, anio=datetime.now().year)
+    context = {
+        'ingresos_totales': ingresos_totales,
+        'gastos_totales': gastos_totales,
+        'beneficio_total': beneficio_total,
+        'ingreso_mes': ingreso_mes,
+        'gastos_mes': gastos_mes,
+        'beneficio_mes': beneficio_mes,
+        'presupuesto_salario': presupuesto_salario,
+        'presupuesto_otros': presupuesto_otros,
+        'presupuesto_beneficio': presupuesto_beneficio,
+        'importes_por_categoria': importes_por_categoria,
+        'mes_actual': mes_actual,
+    }
+    datojs = {
+        
+
+    }
+    if request.headers.get('Accept') == 'application/json':
+        return JsonResponse(datojs)
+    else:
+        return render(request, 'contabilidad/index.html', context)
 
 def cuenta_listar(request):
      cuentas = Cuenta.objects.all()
@@ -205,7 +258,7 @@ def reporte_presupuesto_mensual(request):
         'reporte': reporte,
         'mes_actual': mes_actual,
         'año_actual': año_actual,
-        'meses': range(1, 13),  # Lista de meses (1-12)
+        'meses': range(1, 12),  # Lista de meses (1-12)
         'años': range(hoy.year - 5, hoy.year + 1),  # Últimos 5 años
     }
     return render(request, 'contabilidad/reportes/presupuesto_mensual.html', context)
@@ -322,3 +375,53 @@ def importar_datos(request):
         form = UploadFileForm()
     return render(request, 'contabilidad/transacciones/importar.html', {'form': form})
 
+# 1. Ingreso mensual o total
+def calcular_ingresos(mes=None, anio=None):
+    """Calcula los ingresos totales o mensuales basados en las transacciones de cuentas de ingreso."""
+    filtro = {'cuenta__tipo': 'ingreso'}  # Filtrar solo cuentas de tipo ingreso
+    if mes and anio:
+        filtro.update({'fecha__month': mes, 'fecha__year': anio})
+    elif anio:
+        filtro.update({'fecha__year': anio})
+    
+    total_ingresos = Transaccion.objects.filter(**filtro).aggregate(total=Sum('importe'))['total'] or 0
+    return total_ingresos
+
+# 2. Gastos mensual o total
+def calcular_gastos(mes=None, anio=None):
+    """Calcula los gastos totales o mensuales basados en las transacciones de cuentas de gasto."""
+    filtro = {'cuenta__tipo': 'gasto'}  # Filtrar solo cuentas de tipo gasto
+    
+    if mes and anio:
+        filtro.update({'fecha__month': mes, 'fecha__year': anio})
+    elif anio:
+        filtro.update({'fecha__year': anio})
+    
+    total_gastos = Transaccion.objects.filter(**filtro).aggregate(total=Sum('importe'))['total'] or 0
+    return total_gastos
+
+# 3. Beneficio mensual o total
+def calcular_beneficio(mes=None, anio=None):
+    """Calcula el beneficio como la diferencia entre ingresos y gastos."""
+    ingresos = calcular_ingresos(mes, anio)
+    gastos = calcular_gastos(mes, anio)
+    beneficio = ingresos - gastos
+    return beneficio
+
+# 4. Obtener importes por categorías en un mes o año
+def calcular_importes_por_categoria(mes=None, anio=None):
+    """Calcula el importe total de transacciones agrupadas por categoría."""
+    filtro = {}
+    
+    if mes and anio:
+        filtro.update({'fecha__month': mes, 'fecha__year': anio})
+    elif anio:
+        filtro.update({'fecha__year': anio})
+    
+    importes_por_categoria = (
+        Transaccion.objects.filter(**filtro)
+        .values('categoria__nombre')
+        .annotate(total=Sum('importe'))
+        .order_by('-total')
+    )
+    return importes_por_categoria
