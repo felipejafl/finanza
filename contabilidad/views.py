@@ -460,7 +460,7 @@ import google.generativeai as genai
 import json
 
 # Configura tu clave API
-genai.configure(api_key="AIzaSyBH7jz1XmazWH-GuQIlMcJkXoWfnEM8a9w")  # Reemplaza con tu clave real
+genai.configure(api_key="API_KEY")  # Reemplaza con tu clave real
 
 def enviar_a_IA(imagen_path):
     """
