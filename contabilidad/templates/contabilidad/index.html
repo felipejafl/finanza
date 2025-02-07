@@ -115,7 +115,7 @@
             labels: ['Ingresos', 'Gastos'],
             datasets: [{
                 label: 'Monto (€)',
-                data: [{{ ingresos_totales|floatformat:2 }}, {{ gastos_totales|floatformat:2 }}],
+                data: [{{ ingreso_mes|floatformat:2 }}, {{ gastos_mes|floatformat:2 }}],
                 backgroundColor: ['rgb(54, 162, 235)', 'rgb(255, 99, 132)'],
             }]
         }

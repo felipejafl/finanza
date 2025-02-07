@@ -1,6 +1,6 @@
 from datetime import date
 from django import forms
-from .models import Cuenta, Categoria, Presupuesto, Transaccion
+from .models import Cuenta, Categoria, Presupuesto, Transaccion, TicketImagen
 
 class UploadFileForm(forms.Form):
     file = forms.field = 'ruta'
@@ -39,3 +39,11 @@ class PresupuestoForm(forms.ModelForm):
     class Meta:
         model = Presupuesto
         fields = ['categoria', 'importe']
+
+class TicketImagenForm(forms.ModelForm):
+    class Meta:
+        model = TicketImagen
+        fields = ['imagen']
+        widgets = {
+            'imagen': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }

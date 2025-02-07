@@ -2,14 +2,16 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponse, JsonResponse
 from .forms import UploadFileForm  # Formulario para subir archivos
 from .tasks import importar_transacciones  # Tarea Celery para importar (opcional)
-from .models import Cuenta, Transaccion, Categoria, Presupuesto
+from .models import Cuenta, Transaccion, Categoria, Presupuesto, TicketImagen
 from django.db.models import Sum
 from datetime import datetime
 from datetime import date
 from django.db.models.functions import TruncMonth, TruncYear
 from django.contrib import messages
-from .forms import CuentaForm, PresupuestoForm, CategoriaForm, TransaccionForm
-
+from .forms import CuentaForm, PresupuestoForm, CategoriaForm, TransaccionForm, TicketImagenForm
+import pytesseract 
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' # Ruta al ejecutable de Tesseract
+from PIL import Image
 
 # Create your views here.
 def inicio(request):
@@ -40,6 +42,8 @@ def inicio(request):
     gastos_mes = calcular_gastos(mes=datetime.now().month, anio=datetime.now().year)
     beneficio_total = calcular_beneficio(anio=datetime.now().year) + saldo_ingresos
     beneficio_mes = calcular_beneficio(mes=datetime.now().month, anio=datetime.now().year)
+    
+
     presupuesto_salario = Presupuesto.objects.filter(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum']
     presupuesto_otros = Presupuesto.objects.exclude(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum']
     presupuesto_beneficio = presupuesto_salario - presupuesto_otros
@@ -113,7 +117,22 @@ from .serializers import TransaccionSerializer
 
 class TransaccionListAPIView(APIView):
     def get(self, request, *args, **kwargs):
-        transacciones = Transaccion.objects.select_related('categoria', 'cuenta')
+         # Obtener la fecha actual
+        hoy = datetime.now()
+        # Obtener el primer día del mes actual
+        inicio_mes = datetime(hoy.year, hoy.month, 1)
+        # Calcular el último día del mes actual
+        if hoy.month == 12:
+            fin_mes = datetime(hoy.year + 1, 1, 1)
+        else:
+            fin_mes = datetime(hoy.year, hoy.month + 1, 1)
+        
+        # Filtrar transacciones dentro del mes actual
+        transacciones = Transaccion.objects.filter(
+            fecha__gte=inicio_mes,
+            fecha__lt=fin_mes
+        ).select_related('categoria', 'cuenta')
+
         serializer = TransaccionSerializer(transacciones, many=True)
         return Response(serializer.data)
 
@@ -425,3 +444,112 @@ def calcular_importes_por_categoria(mes=None, anio=None):
         .order_by('-total')
     )
     return importes_por_categoria
+
+# Simulación de ChatGPT para el flujo
+# def enviar_a_chatgpt(texto_extraido):
+#     # Aquí iría la llamada real a ChatGPT, pero para pruebas devolveremos un mock
+#     return [
+#         {"nombre": "Producto A", "precio": 12.50},
+#         {"nombre": "Producto B", "precio": 8.99},
+#         {"nombre": "Producto C", "precio": 5.75},
+#     ]
+
+# Importar la librería IA
+import os
+import google.generativeai as genai
+import json
+
+# Configura tu clave API
+genai.configure(api_key="AIzaSyBH7jz1XmazWH-GuQIlMcJkXoWfnEM8a9w")  # Reemplaza con tu clave real
+
+def enviar_a_IA(imagen_path):
+    """
+    Envía una imagen de un comprobante de compra a Gemini y extrae los productos y precios en formato JSON.
+
+    Args:
+        imagen_path (str): La ruta al archivo de imagen del comprobante.
+
+    Returns:
+        str: La respuesta de Gemini en formato JSON o None si hay un error.
+    """
+    try:
+        # Subir la imagen a Gemini
+        file = genai.upload_file(imagen_path, mime_type="image/jpeg")  # Asume que es JPEG, ajusta si es necesario
+
+        # Configuración del modelo
+        generation_config = {
+            "temperature": 0.3,  # Ajusta la temperatura para controlar la creatividad
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 8192,
+            "response_mime_type": "text/plain",
+        }
+        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+
+        # Crear el mensaje para Gemini
+        prompt = f"""
+        A partir de la imagen adjunta de un ticket de compra, devuélveme una lista de productos con el nombre del producto y el precio correspondiente. 
+        El formato de la respuesta debe ser estrictamente JSON, con este esquema:
+        [
+            {{"nombre": "Producto A", "precio": 10.50}},
+            {{"nombre": "Producto B", "precio": 20.00}}
+        ]
+        """
+
+        # Iniciar la conversación con Gemini
+        #chat_session = model.start_chat(history=[{"role": "user", "parts": [file, prompt]}])
+
+        # Obtener la respuesta de Gemini
+        response = model.generate_content([file, prompt], generation_config={'response_mime_type':'application/json'})  # No necesitas pasar un mensaje adicional
+
+        # Devolver la respuesta
+        return json.loads(response.text)
+
+    except Exception as e:
+        print(f"Error al enviar la imagen a Gemini: {e}")
+        return None
+
+def cargar_ticket(request):
+    if request.method == 'POST':
+        form = TicketImagenForm(request.POST, request.FILES)
+        if form.is_valid():
+            ticket = form.save()
+            # Extraer productos y precios de la imagen del ticket
+            productos = enviar_a_IA(ticket.imagen.path)
+            # Eliminar la imagen después de procesarla
+            if os.path.exists(ticket.imagen.path):
+                os.remove(ticket.imagen.path)
+            # Obtener cuentas y categorías para los selects
+            cuentas = Cuenta.objects.all()
+            categorias = Categoria.objects.all()
+            return render(request, 'contabilidad/transacciones/resultado.html', {
+                'productos': productos,
+                'cuentas': cuentas,
+                'categorias': categorias,
+                'date': date.today().strftime('%Y-%m-%d')
+            })
+    else:
+        form = TicketImagenForm()
+    return render(request, 'contabilidad/transacciones/cargar_ticket.html', {'form': form})
+
+def guardar_transacciones(request):
+    if request.method == 'POST':
+        # Procesar las filas dinámicas
+        for key, value in request.POST.items():
+            if key.startswith('descripcion_'):
+                index = key.split('_')[1]
+                descripcion = value
+                importe = request.POST.get(f'importe_{index}')
+                fecha = request.POST.get(f'fecha_{index}')
+                cuenta_id = request.POST.get(f'cuenta_{index}')
+                categoria_id = request.POST.get(f'categoria_{index}')
+                
+                # Crear la transacción
+                Transaccion.objects.create(
+                    descripcion=descripcion,
+                    importe=importe,
+                    fecha=datetime.strptime(fecha, '%Y-%m-%d'),
+                    cuenta_id=cuenta_id,
+                    categoria_id=categoria_id
+                )
+        return redirect('transaccion_listar')

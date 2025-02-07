@@ -1,4 +1,7 @@
 from django.urls import path
+from django.conf.urls.static import static
+from django.conf import settings
+
 from .views import (
     inicio,
     cuenta_listar,
@@ -22,6 +25,8 @@ from .views import (
     presupuesto_crear,
     presupuesto_editar,
     presupuesto_eliminar,
+    cargar_ticket,
+    guardar_transacciones,
 )
 
 urlpatterns = [
@@ -38,6 +43,8 @@ urlpatterns = [
     path('transacciones/<int:pk>/editar/', transaccion_editar, name='transaccion_editar'),
     path('transacciones/<int:pk>/eliminar/', transaccion_eliminar, name='transaccion_eliminar'),
     path('transacciones/importar/', importar_datos, name='importar_datos'),
+    path('transacciones/cargar_ticket/', cargar_ticket, name='cargar_ticket'),
+    path('transacciones/resultado/', guardar_transacciones, name='guardar_transacciones'),
 
     path('presupuestos/', presupuesto_listar, name='presupuesto_listar'),
     path('presupuestos/crear/', presupuesto_crear, name='presupuesto_crear'),
@@ -52,4 +59,5 @@ urlpatterns = [
     path('reportes/balance-general/', reporte_balance_general, name='reporte_balance_general'),
     path('reportes/estado-resultados/', reporte_estado_resultados, name='reporte_estado_resultados'),
     path('reportes/presupuesto-mensual/', reporte_presupuesto_mensual, name='reporte_presupuesto_mensual'),
-]
+    
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
