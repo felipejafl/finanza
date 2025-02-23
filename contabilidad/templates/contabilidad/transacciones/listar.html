@@ -38,7 +38,12 @@
                 { data: "cuenta_nombre" },
                 { data: "fecha" },
                 { data: "categoria_nombre" },
-                { data: "importe" },
+                { 
+                    data: "importe",
+                    render: function (data, type, row) {
+                        return `${data} €`;  // Agregamos el símbolo €
+                    }
+                },
                 { data: "descripcion" },
                 {
                     data: "id", // Utilizamos el ID para generar los enlaces

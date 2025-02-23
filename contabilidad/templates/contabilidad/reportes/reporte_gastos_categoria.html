@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block head%}
+<style>
+    .report-container {
+        display: flex; /* Activa Flexbox en el contenedor */
+        align-items: flex-start; /* Alinea los items al inicio verticalmente */
+    }
+
+    .report-container table {
+        margin-right: 20px; /* Añade un margen a la derecha de la tabla para separarla del gráfico */
+        flex: 1; /* Permite que la tabla se expanda si hay espacio */
+    }
+
+    .report-container canvas {
+        flex: 1; /* Permite que el gráfico se expanda si hay espacio */
+    }
+</style>
+{%endblock%}
+{% block content %}
+<h1>Reporte de Gastos por Categoría</h1>
+<div class="card text-center">
+    <div class="card-header">
+        <form method="get" action="{% url 'reporte_gastos_categoria' %}" class="date-range-form">
+            <div class="form-row align-items-end">
+                <div class="form-group col-md-3">  {# Columna para Fecha de inicio #}
+                    <label for="fecha_inicio">Fecha de inicio:</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio_str }}">
+                </div>
+                <div class="form-group col-md-3">  {# Columna para Fecha de fin #}
+                    <label for="fecha_fin">Fecha de fin:</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin_str }}">
+                </div>
+                <div class="form-group col-md-3">  {# Columna para el Botón, col-md-auto para ajustar al contenido #}
+                    <button type="submit" class="btn btn-primary">Generar Reporte</button>
+                </div>
+            </div>
+        </form>        
+    </div>
+    <div class="card-body">
+        <div class="report-container">  {# Contenedor Flexbox #}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th scope="col">Categoría</th>
+                        <th scope="col">Total Gastado</th>
+                        <th scope="col">Porcentaje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for categoria_gasto in categorias_gastos %}
+                    <tr>
+                        <th scope="row">{{ categoria_gasto.categoria_nombre }}</th>
+                        <td>{{ categoria_gasto.importe_total_gastado|floatformat:2}} €</td>
+                        <td>
+                            {% if total_gastos > 0 %}
+                                {{ categoria_gasto.porcentaje_gasto }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td><strong>Total Gastos</strong></td>
+                        <td><strong>{{ total_gastos|floatformat:2 }} €</strong></td>
+                        <td><strong>100%</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div style="width:500px;"> <canvas id="gastosPieChart"></canvas> </div>
+        </div>
+        <div style="width:80%; margin-top: 20px;">
+            <canvas id="gastosPieChart"></canvas>
+        </div>
+        
+    </div>
+  </div>
+
+{% endblock %}
+{% block js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const categoriasNombres = [{% for cat in categorias_gastos %}"{{ cat.categoria_nombre }}",{% endfor %}];
+        const importesGastos = [{% for cat in categorias_gastos %}{{ cat.importe_total_gastado }},{% endfor %}];
+
+        const ctx = document.getElementById('gastosPieChart').getContext('2d');
+        const gastosPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: categoriasNombres,
+                datasets: [{
+                    label: 'Gastos por Categoría',
+                    data: importesGastos,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(255, 206, 86, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)',
+                        'rgba(255, 159, 64, 0.7)',
+                        'rgba(199, 199, 199, 0.7)',
+                        'rgba(247, 102, 202, 0.7)',
+                        'rgba(132, 255, 99, 0.7)',
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(199, 199, 199, 1)',
+                        'rgba(247, 102, 202, 1)',
+                        'rgba(132, 255, 99, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribución de Gastos por Categoría'
+                    }
+                }
+            }
+        });
+    </script>
+    {% endblock %}

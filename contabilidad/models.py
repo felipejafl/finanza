@@ -26,6 +26,7 @@ class Transaccion(models.Model):
 class Presupuesto(models.Model):
     id = models.AutoField(primary_key=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE)
+    tipo = models.CharField(max_length=20, choices=(('activo', 'Activo'), ('pasivo', 'Pasivo'), ('patrimonio neto', 'Patrimonio Neto'), ('ingreso', 'Ingreso'), ('gasto', 'Gasto')), default='gasto')
     importe = models.DecimalField(max_digits=10, decimal_places=2)
 
 class TicketImagen(models.Model):

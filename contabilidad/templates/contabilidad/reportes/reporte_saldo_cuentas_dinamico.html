@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block head%}
+<style>
+    .report-container {
+        display: flex; /* Activa Flexbox en el contenedor */
+        align-items: flex-start; /* Alinea los items al inicio verticalmente */
+    }
+
+    .report-container table {
+        margin-right: 20px; /* Añade un margen a la derecha de la tabla para separarla del gráfico */
+        flex: 1; /* Permite que la tabla se expanda si hay espacio */
+    }
+
+    .report-container canvas {
+        flex: 1; /* Permite que el gráfico se expanda si hay espacio */
+    }
+</style>
+{%endblock%}
+{% block content %}
+<h1>Reporte de Saldo de Cuentas (Cálculo Dinámico)</h1>
+<div class="report-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nombre de Cuenta</th>
+                <th>Saldo Actual Dinámico</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cuenta in reporte_cuentas %}
+            <tr>
+                <td>{{ cuenta.nombre_cuenta }}</td>
+                <td>
+                    {% if cuenta.saldo_actual_dinamico < 0 %}
+                        <span style="color:red;">{{ cuenta.saldo_actual_dinamico }} €</span>  {% else %}
+                        {{ cuenta.saldo_actual_dinamico }} €
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="2">No hay cuentas registradas.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>**Saldo Total General (Cuentas Ingreso y Gasto)**</td>
+                <td>
+                    **
+                    {% if total_saldo < 0 %}
+                        <span style="color:red;">{{ total_saldo }} €</span> {% else %}
+                        {{ total_saldo }} €
+                    {% endif %}
+                    **
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %}

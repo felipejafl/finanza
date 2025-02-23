@@ -33,7 +33,6 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'django_bootstrap5', # App de Bootstrap 5
     'contabilidad', # App de contabilidad
-    'celery', # App de tareas en segundo plano
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,7 +40,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework', # App de RESTful API
-    'pytesseract', # App de OCR
 ]
 
 MIDDLEWARE = [
@@ -77,11 +75,14 @@ WSGI_APPLICATION = 'finanza.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.path.join('D:\Documentos\Finanzas', 'db.sqlite3'),
     }
 }
 

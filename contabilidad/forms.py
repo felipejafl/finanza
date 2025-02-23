@@ -1,10 +1,7 @@
 from datetime import date
 from django import forms
 from .models import Cuenta, Categoria, Presupuesto, Transaccion, TicketImagen
-
-class UploadFileForm(forms.Form):
-    file = forms.field = 'ruta'
-    
+  
 class CuentaForm(forms.ModelForm):
     class Meta:
         model = Cuenta
@@ -38,7 +35,7 @@ class PresupuestoForm(forms.ModelForm):
 
     class Meta:
         model = Presupuesto
-        fields = ['categoria', 'importe']
+        fields = ['categoria', 'tipo', 'importe']
 
 class TicketImagenForm(forms.ModelForm):
     class Meta:
@@ -47,3 +44,36 @@ class TicketImagenForm(forms.ModelForm):
         widgets = {
             'imagen': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
+class TransaccionFilterForm(forms.Form):
+    fecha_inicio = forms.DateField(
+        label='Fecha de Inicio',
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False
+    )
+    fecha_fin = forms.DateField(
+        label='Fecha de Fin',
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False
+    )
+    categorias = forms.ModelMultipleChoiceField(
+        queryset=Categoria.objects.all(),
+        label='Categorías',
+        required=False,
+        widget=forms.SelectMultiple # Cambiado a SelectMultiple
+    )
+    cuentas = forms.ModelMultipleChoiceField(
+        queryset=Cuenta.objects.all(),
+        label='Cuentas',
+        required=False,
+        widget=forms.SelectMultiple # Cambiado a SelectMultiple
+    )
+    tipo_cuenta = forms.ChoiceField(
+        choices=[('', '---------'), ('ingreso', 'Ingreso'), ('gasto', 'Gasto')],
+        label='Tipo de Cuenta',
+        required=False,
+        initial=''
+    )
+    descripcion_palabra_clave = forms.CharField(
+        label='Palabra Clave en Descripción',
+        required=False
+    )

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Reporte de Presupuesto Mensual</h1>
+<h1>Reporte de Presupuesto vs Gasto</h1>
 
 <!-- Formulario para seleccionar mes y año -->
 <form method="get" class="row g-3 mb-4">
@@ -10,7 +10,7 @@
         <select id="mes" name="mes" class="form-select">
             {% for mes in meses %}
             <option value="{{ mes }}" {% if mes == mes_actual %}selected{% endif %}>
-                {{ mes|date:"F" }}
+                {{ mes }}
             </option>
             {% endfor %}
         </select>
@@ -46,11 +46,11 @@
         {% for item in reporte %}
         <tr>
             <td>{{ item.categoria }}</td>
-            <td>{{ item.presupuesto_anual|floatformat:2 }}</td>
-            <td>{{ item.presupuesto_mensual|floatformat:2 }}</td>
-            <td>{{ item.ejecucion_real|floatformat:2 }}</td>
+            <td>{{ item.presupuesto_anual|floatformat:2 }} €</td>
+            <td>{{ item.presupuesto_mensual|floatformat:2 }} €</td>
+            <td>{{ item.ejecucion_real|floatformat:2 }} €</td>
             <td class="{% if item.variacion < 0 %}text-danger{% else %}text-success{% endif %}">
-                {{ item.variacion|floatformat:2 }}
+                {{ item.variacion|floatformat:2 }} €
             </td>
             <td>{{ item.porcentaje_ejecucion|floatformat:2 }} %</td>
         </tr>

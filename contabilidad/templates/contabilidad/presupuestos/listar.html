@@ -10,6 +10,7 @@
         <thead>
             <tr>
                 <th>Categoría</th>
+                <th>Tipo</th>
                 <th>Importe</th>                
                 <th>Acciones</th>
             </tr>
@@ -18,6 +19,7 @@
             {% for presupuesto in presupuestos %}
             <tr>
                 <td>{{ presupuesto.categoria }}</td>
+                <td>{{ presupuesto.get_tipo_display }}</td>
                 <td>{{ presupuesto.importe|floatformat:2 }} €</td>
                 <td>
                     <a href="{% url 'presupuesto_editar' presupuesto.id %}" class="btn btn-primary">Editar</a>
