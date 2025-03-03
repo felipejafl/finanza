@@ -682,29 +682,49 @@ def reporte_transacciones_filtrado(request):
     return render(request, 'contabilidad/reportes/reporte_transacciones_filtrado.html', context)
 
 # 10. Reporte de resumen de ingresos por tipo (categoría)
+
 def resumen_ingresos_por_tipo(request):
     """
     Vista de Django para generar un reporte de resumen de ingresos por tipo (categoría).
-    Calcula y presenta los ingresos totales por cada categoría de ingreso para el mes actual.
+    Permite seleccionar un rango de fechas para el reporte.
+    Si no se especifica un rango, muestra el mes actual por defecto.
     """
-    today = date.today()
-    mes_actual = today.month
-    anio_actual = today.year
+    fecha_inicio_str = request.GET.get('fecha_inicio')
+    fecha_fin_str = request.GET.get('fecha_fin')
+    fecha_inicio = None
+    fecha_fin = None
 
-    # 1. Acceder y Filtrar transacciones de 'ingreso' para el mes actual
-    transacciones_ingreso_mes_actual = Transaccion.objects.filter(
-        cuenta__tipo='ingreso',
-        fecha__month=mes_actual,
-        fecha__year=anio_actual
-    )
+    if fecha_inicio_str and fecha_fin_str:
+        try:
+            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+            fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+            transacciones_ingreso = Transaccion.objects.filter(
+                cuenta__tipo='ingreso',
+                fecha__range=[fecha_inicio, fecha_fin]
+            )
+            periodo_reporte = f"Desde {fecha_inicio.strftime('%d/%m/%Y')} hasta {fecha_fin.strftime('%d/%m/%Y')}" # Para el título
+        except ValueError:
+            return HttpResponse("Error: Formato de fecha inválido. Use AAAA-MM-DD.", status=400) # Manejo de error de formato de fecha
+    else:
+        today = date.today()
+        mes_actual = today.month
+        anio_actual = today.year
+        fecha_inicio = date(anio_actual, mes_actual, 1) # Primer día del mes actual
+        fecha_fin = date(anio_actual, mes_actual, today.day) # Día actual del mes actual
+        transacciones_ingreso = Transaccion.objects.filter(
+            cuenta__tipo='ingreso',
+            fecha__month=mes_actual,
+            fecha__year=anio_actual
+        )
+        periodo_reporte = f"Mes Actual ({fecha_inicio.strftime('%B %Y')})" # Para el título
 
     # 2. Agrupar por categoría y calcular el importe total de ingresos
-    ingresos_por_categoria = transacciones_ingreso_mes_actual.values('categoria__nombre').annotate(
+    ingresos_por_categoria = transacciones_ingreso.values('categoria__nombre').annotate(
         importe_total_ingresos=Sum('importe')
     ).order_by('-importe_total_ingresos')
 
     # 3. Calcular el total de ingresos para todas las categorías
-    total_ingresos = transacciones_ingreso_mes_actual.aggregate(total_ingresos=Sum('importe'))['total_ingresos'] or 0
+    total_ingresos = transacciones_ingreso.aggregate(total_ingresos=Sum('importe'))['total_ingresos'] or 0
 
     # 4. Preparar datos para la plantilla: lista de diccionarios con porcentajes
     categorias_ingresos_data = []
@@ -721,6 +741,7 @@ def resumen_ingresos_por_tipo(request):
     context = {
         'categorias_ingresos_data': categorias_ingresos_data,
         'total_ingresos': total_ingresos,
+        'periodo_reporte': periodo_reporte, # Pasar el periodo para el título
     }
     return render(request, 'contabilidad/reportes/resumen_ingresos_por_tipo.html', context)
 

@@ -1,7 +1,31 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
-<h1 class="mt-4 mb-4">Resumen de Ingresos por Tipo</h1>
+<h1 class="mt-4 mb-4">Resumen de Ingresos por Tipo - {{ periodo_reporte }}</h1>
+
+<div class="mb-3">
+    <form method="get" action="{% url 'resumen_ingresos_por_tipo' %}">
+        <div class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label for="fecha_inicio" class="col-form-label">Fecha Inicio:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="fecha_inicio" name="fecha_inicio" class="form-control">
+            </div>
+            <div class="col-auto">
+                <label for="fecha_fin" class="col-form-label">Fecha Fin:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="fecha_fin" name="fecha_fin" class="form-control">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filtrar por Fecha</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+
 <h2>Tabla de Ingresos por Categoría</h2>
     <table class="table">
         <thead>
@@ -20,7 +44,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="3">No hay ingresos registrados para el mes actual.</td>
+                <td colspan="3">No hay ingresos registrados para el periodo seleccionado.</td>
             </tr>
             {% endfor %}
         </tbody>
