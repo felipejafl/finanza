@@ -898,5 +898,5 @@ def reporte_retenciones_irpf(request):
         'porcentaje_retencion_aplicado': porcentaje_retencion, # Pasar el porcentaje a la plantilla
     }
 
-    return render(request, 'reporte_retenciones_irpf.html', context)
+   
     return render(request, 'contabilidad/reportes/reporte_retenciones_irpf.html', context)
