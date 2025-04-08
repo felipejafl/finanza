@@ -172,9 +172,18 @@ def transaccion_eliminar(request, pk):
 
 # Configura tu clave API
 api_key = os.environ.get("GEMINI_API_KEY") # toma el api de una variable de entorno que se ha creado previamente con la clave
-genai.configure(api_key=api_key)  # Reemplaza con tu clave real
+# Configura la API Key (Asegúrate que está en settings.py y es segura)
+try:
+    genai.configure(api_key=api_key)
+except AttributeError:
+    # Manejar el caso donde la API Key no está configurada
+    # Loggear el error o mostrar un mensaje apropiado
+    print("ERROR: GEMINI_API_KEY no encontrada en settings.py")
+    # Podrías lanzar una excepción o deshabilitar la función
+    pass # O manejarlo como prefieras
 
 def enviar_a_IA(imagen_path):
+    
     """
     Envía una imagen de un comprobante de compra a Gemini y extrae los productos y precios en formato JSON.
 
@@ -197,14 +206,15 @@ def enviar_a_IA(imagen_path):
             "response_mime_type": "text/plain",
         }
         model = genai.GenerativeModel("gemini-2.0-flash-exp")
-
+        categorias = Categoria.objects.all()
+        nombres_categorias = ", ".join([cat.nombre for cat in categorias])
         # Crear el mensaje para Gemini
         prompt = f"""
-        A partir de la imagen adjunta de un ticket de compra, devuélveme una lista de productos con el nombre del producto y el precio correspondiente. 
+        A partir de la imagen adjunta de un ticket de compra, devuélveme una lista de productos con el nombre del producto, el precio y la categoria correspondiente del siguiente listado: {nombres_categorias} 
         El formato de la respuesta debe ser estrictamente JSON, con este esquema:
         [
-            {{"nombre": "Producto A", "precio": 10.50}},
-            {{"nombre": "Producto B", "precio": 20.00}}
+            {{"nombre": "Producto A", "precio": 10.50, "categoria": "Alimentos"}},
+            {{"nombre": "Producto B", "precio": 20.00, "categoria": "Articulos de limpieza"}},
         ]
         """
 
@@ -226,13 +236,15 @@ def cargar_ticket(request):
         form = TicketImagenForm(request.POST, request.FILES)
         if form.is_valid():
             ticket = form.save()
-            # Extraer productos y precios de la imagen del ticket
+            # Extraer productos, precios de la imagen y sugiere una categoria del ticket
             productos = enviar_a_IA(ticket.imagen.path)
             # Eliminar la imagen después de procesarla
             if os.path.exists(ticket.imagen.path):
                 os.remove(ticket.imagen.path)
             # Obtener cuentas y categorías para los selects
             cuentas = Cuenta.objects.all()
+            # Ordenar las cuentas, priorizando las de tipo "gasto"
+            cuentas = sorted(cuentas, key=lambda cuenta: cuenta.tipo != 'gasto')
             categorias = Categoria.objects.all()
             return render(request, 'contabilidad/transacciones/resultado.html', {
                 'productos': productos,

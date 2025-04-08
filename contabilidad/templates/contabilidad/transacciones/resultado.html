@@ -35,7 +35,11 @@
                         <td>
                             <select name="categoria_{{ forloop.counter }}" class="form-select">
                                 {% for categoria in categorias %}
-                                <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                                <option value="{{ categoria.id }}"
+                                    {% if producto.categoria == categoria.nombre %}
+                                        selected
+                                    {% endif %}>
+                                    {{ categoria.nombre }}</option>
                                 {% endfor %}
                             </select>
                         </td>
