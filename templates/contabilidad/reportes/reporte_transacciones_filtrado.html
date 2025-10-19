@@ -1,0 +1,111 @@
+{% extends 'contabilidad/menu.html' %}
+
+{% block head%}
+<style>
+    .report-container {
+        display: flex; /* Activa Flexbox en el contenedor */
+        align-items: flex-start; /* Alinea los items al inicio verticalmente */
+    }
+
+    .report-container table {
+        margin-right: 20px; /* Añade un margen a la derecha de la tabla para separarla del gráfico */
+        flex: 1; /* Permite que la tabla se expanda si hay espacio */
+    }
+
+    .report-container canvas {
+        flex: 1; /* Permite que el gráfico se expanda si hay espacio */
+    }
+</style>
+{%endblock%}
+{% block content %}
+
+<h1>Historial de Transacciones Filtrado</h1>
+<div class="card text-center">
+    <div class="card-header">
+        <form method="get" class="row g-3 align-items-center"> <div class="col-md-auto">
+                {{ form.fecha_inicio.errors }}
+                <label for="{{ form.fecha_inicio.id_for_label }}" class="col-form-label">Fecha Inicio:</label>
+              </div>
+    
+              <div class="col-md-auto">
+                {{ form.fecha_inicio }}
+              </div>
+            <div class="col-md-auto">
+                {{ form.fecha_fin.errors }}
+                <label for="{{ form.fecha_fin.id_for_label }}" class="col-form-label">Fecha Fin:</label>
+              </div>
+              <div class="col-md-auto">
+                {{ form.fecha_fin }}
+              </div>
+    
+            <div class="col-md-auto">
+                {{ form.categorias.errors }}
+                <label for="{{ form.categorias.id_for_label }}" class="col-form-label">Categorías:</label>
+              </div>
+              <div class="col-md-auto">
+                {{ form.categorias }}
+              </div>
+    
+            <div class="col-md-auto">
+                {{ form.cuentas.errors }}
+                <label for="{{ form.cuentas.id_for_label }}" class="col-form-label">Cuentas:</label>
+              </div>
+              <div class="col-md-auto">
+                {{ form.cuentas }}
+              </div>
+            <div class="col-md-auto">
+                {{ form.tipo_cuenta.errors }}
+                <label for="{{ form.tipo_cuenta.id_for_label }}" class="col-form-label">Tipo de Cuenta:</label>
+              </div>
+              <div class="col-md-auto">
+                {{ form.tipo_cuenta }}
+              </div>
+            <div class="col-md-auto">
+                {{ form.descripcion_palabra_clave.errors }}
+                <label for="{{ form.descripcion_palabra_clave.id_for_label }}" class="col-form-label">Descripción:</label>
+              </div>
+              <div class="col-md-auto">
+                {{ form.descripcion_palabra_clave }}
+              </div>
+    
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+            </div>
+            <div class="col-md-auto">
+                <a href="{% url 'contabilidad:reporte_transacciones_filtrado' %}" class="btn btn-secondary">Limpiar Filtros</a>
+            </div>
+        </form>
+    </div>
+    <div class="card-body">
+        <div class="report-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Descripción</th>
+                        <th>Categoría</th>
+                        <th>Cuenta</th>
+                        <th>Tipo de Cuenta</th>
+                        <th>Importe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaccion in transacciones %}
+                    <tr>
+                        <td>{{ transaccion.fecha }}</td>
+                        <td>{{ transaccion.descripcion }}</td>
+                        <td>{{ transaccion.categoria }}</td>
+                        <td>{{ transaccion.cuenta }}</td>
+                        <td>{{ transaccion.cuenta.tipo }}</td> <td>{{ transaccion.importe }} €</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6">No se encontraron transacciones con los filtros seleccionados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

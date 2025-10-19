@@ -1,0 +1,66 @@
+{% extends 'contabilidad/menu.html' %}
+
+{% load static %}
+{% block content %}
+<h1>Reporte de IVA Soportado / Repercutido</h1>
+
+<p><strong>Período:</strong> {{ periodo_reporte }}</p>
+<p><strong>IVA Soportado</strong></p>
+<ul>
+    <li>Es el IVA que tú pagas a tus proveedores cuando compras bienes o servicios para tu negocio.</li>
+    <li>Se refleja en las facturas de compra que recibes.</li>
+    <li>Representa un crédito fiscal para tu empresa, ya que puedes deducirlo del IVA que has cobrado a tus clientes (IVA Repercutido).</li>
+</ul>
+<p><strong>Total:</strong> {{ total_iva_soportado|floatformat:2 }} €</p>
+<p><strong>IVA Repercutido</strong></p>
+<ul>
+    <li>Es el IVA que tú cobras a tus clientes cuando les vendes bienes o servicios.</li>
+    <li>Se refleja en las facturas de venta que emites.</li>
+    <li>Representa una deuda fiscal para tu empresa, ya que debes ingresarlo a la Agencia Tributaria (Hacienda) en las declaraciones de IVA.</li>
+</ul>
+<p><strong>Total:</strong> {{ total_iva_repercutido|floatformat:2 }} €</p>
+<p>
+    <strong>Diferencia de IVA:</strong> 
+    {% if diferencia_iva > 0 %}
+        <span style="color: green;">+{{ diferencia_iva|floatformat:2 }} € (IVA a Ingresar)</span>
+    {% else %}
+        <span style="color: red;">{{ diferencia_iva|floatformat:2 }} € (IVA a Compensar/Devolver)</span>
+    {% endif %}
+</p>
+
+<canvas id="grafico_iva" width="400" height="200"></canvas>
+
+{% endblock %}
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('grafico_iva').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['IVA Soportado', 'IVA Repercutido'],
+            datasets: [{
+                label: 'Importe (€)',
+                data: [{{ total_iva_soportado|floatformat:2 }}, {{ total_iva_repercutido|floatformat:2 }}],
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 99, 132, 0.2)',
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 99, 132, 1)',
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

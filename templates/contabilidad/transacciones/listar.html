@@ -1,0 +1,73 @@
+{% extends 'contabilidad/menu.html' %}
+
+{% load static %}
+{% load django_bootstrap5 %}
+{% block head %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<h1>Listado de Transacciones</h1>
+<a href="{% url 'contabilidad:transaccion_crear' %}" class="btn btn-success">Crear nueva transaccion</a>
+<a href="{% url 'contabilidad:cargar_ticket' %}" class="btn btn-success">Cargar un ticket</a>
+
+<table id="transacciones-table" class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>Cuenta</th>
+            <th>Fecha</th>
+            <th>Categoría</th>
+            <th>Importe</th>
+            <th>Descripción</th>
+            <th>Acciones</th> <!-- Columna para botones de acciones -->
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Las filas serán agregadas dinámicamente por DataTables -->
+    </tbody>
+</table>
+
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#transacciones-table').DataTable({
+            ajax: {
+                url: "{% url 'contabilidad:transaccion-api' %}",
+                dataSrc: ""
+            },
+            columns: [
+                { data: "cuenta_nombre" },
+                { data: "fecha" },
+                { data: "categoria_nombre" },
+                { 
+                    data: "importe",
+                    render: function (data, type, row) {
+                        return `${data} €`;  // Agregamos el símbolo €
+                    }
+                },
+                { data: "descripcion" },
+                {
+                    data: "id", // Utilizamos el ID para generar los enlaces
+                    render: function (data, type, row) {
+                        return `
+                            <a href="/contabilidad/transacciones/${data}/editar/" class="btn btn-sm btn-primary">Editar</a>
+                            <a href="/contabilidad/transacciones/${data}/eliminar/" class="btn btn-sm btn-danger">Eliminar</a>
+                        `;
+                    },
+                    orderable: false, // No permitir ordenar esta columna
+                    searchable: false // No permitir buscar en esta columna
+                }
+            ],
+            order: [[1, 'desc']],
+            responsive: true,
+            paging: true,
+            searching: true,
+            ordering: true
+        });
+    });
+</script>
+{% endblock %}

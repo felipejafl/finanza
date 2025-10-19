@@ -1,0 +1,131 @@
+{% extends 'contabilidad/menu.html' %}
+
+{% load static %}
+{% block content %}
+<h1 class="mt-4 mb-4">Resumen de Ingresos por Tipo - {{ periodo_reporte }}</h1>
+
+<div class="mb-3">
+    <form method="get" action="{% url 'contabilidad:resumen_ingresos_por_tipo' %}">
+        <div class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label for="fecha_inicio" class="col-form-label">Fecha Inicio:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="fecha_inicio" name="fecha_inicio" class="form-control">
+            </div>
+            <div class="col-auto">
+                <label for="fecha_fin" class="col-form-label">Fecha Fin:</label>
+            </div>
+            <div class="col-auto">
+                <input type="date" id="fecha_fin" name="fecha_fin" class="form-control">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filtrar por Fecha</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+
+<h2>Tabla de Ingresos por Categoría</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Categoría de Ingreso</th>
+                <th>Importe Total de Ingresos</th>
+                <th>% de Ingresos Totales</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for categoria in categorias_ingresos_data %}
+            <tr>
+                <td>{{ categoria.nombre_categoria }}</td>
+                <td>{{ categoria.importe_total_ingresos }}</td>
+                <td>{{ categoria.porcentaje_ingresos_totales }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No hay ingresos registrados para el periodo seleccionado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td><strong>Total Ingresos</strong></td>
+                <td><strong>{{ total_ingresos }}</strong></td>
+                <td><strong>100%</strong></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <h2>Gráfico de Ingresos por Categoría</h2>
+    <div style="width:80%; margin:auto;">
+        <canvas id="ingresosPorCategoriaChart"></canvas>
+    </div>
+{% endblock %}
+{% block js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const categorias = {{ categorias_ingresos_data|safe }};
+            if (categorias.length > 0) {
+                const ctx = document.getElementById('ingresosPorCategoriaChart').getContext('2d');
+                const labels = categorias.map(cat => cat.nombre_categoria);
+                const data = categorias.map(cat => cat.importe_total_ingresos);
+                const percentages = categorias.map(cat => cat.porcentaje_ingresos_totales);
+
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Importe Total de Ingresos',
+                            data: data,
+                            backgroundColor: [ // Colores de ejemplo, puedes personalizarlos
+                                'rgba(255, 99, 132, 0.8)',
+                                'rgba(54, 162, 235, 0.8)',
+                                'rgba(255, 206, 86, 0.8)',
+                                'rgba(75, 192, 192, 0.8)',
+                                'rgba(153, 102, 255, 0.8)',
+                                'rgba(255, 159, 64, 0.8)',
+                                'rgba(199, 199, 199, 0.8)',
+                                'rgba(158, 228, 125, 0.8)',
+                            ],
+                            borderColor: 'rgba(255, 255, 255, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(context.parsed.y);
+                                            label += ' (' + percentages[context.dataIndex] + ')';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            },
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Distribución de Ingresos por Categoría'
+                            }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('ingresosPorCategoriaChart').innerHTML = "<p>No hay datos para mostrar el gráfico.</p>";
+            }
+        });
+    </script>
+{% endblock %}

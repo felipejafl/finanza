@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load django_bootstrap5 %}
+{% load i18n %}
+
+{% block title %}{{ project.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>{{ project.title }}</h1>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'projects:project-update' project.pk %}" 
+                       class="btn btn-primary">
+                        {% translate "Editar Proyecto" %}
+                    </a>
+                    {% if project.is_repeatable %}
+                        <a href="{% url 'projects:project-restart' project.pk %}"
+                           class="btn btn-warning"
+                           onclick="return confirm('{% translate "¿Está seguro de que desea reiniciar el proyecto?" %}')">
+                            {% translate "Reiniciar Proyecto" %}
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'projects:project-delete' project.pk %}"
+                       class="btn btn-danger"
+                       onclick="return confirm('{% translate "¿Está seguro de que desea eliminar este proyecto?" %}')">
+                        {% translate "Eliminar Proyecto" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{% translate "Detalles del Proyecto" %}</h5>
+                    <p class="card-text">{{ project.description }}</p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>{% translate "Estado:" %}</strong> 
+                                <span class="badge bg-{{ project.status.color|default:'primary' }}">
+                                    {{ project.status }}
+                                </span>
+                            </p>
+                            <p><strong>{% translate "Prioridad:" %}</strong> 
+                                <span class="badge bg-{{ project.priority.color }}">
+                                    {{ project.priority }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            {% if project.start_date %}
+                                <p><strong>{% translate "Fecha de inicio:" %}</strong> {{ project.start_date }}</p>
+                            {% endif %}
+                            {% if project.due_date %}
+                                <p><strong>{% translate "Fecha de vencimiento:" %}</strong> {{ project.due_date }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">{% translate "Progreso" %}</h5>
+                        <span class="badge bg-primary">{{ project.completion_percentage }}%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: {{ project.completion_percentage }}%"
+                             aria-valuenow="{{ project.completion_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{% translate "Tareas" %}</h5>
+                    <a href="{% url 'projects:task-create' project.pk %}" 
+                       class="btn btn-primary btn-sm">
+                        {% translate "Nueva Tarea" %}
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if tasks %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>{% translate "Descripción" %}</th>
+                                        <th>{% translate "Estado" %}</th>
+                                        <th>{% translate "Fecha de vencimiento" %}</th>
+                                        <th>{% translate "Orden" %}</th>
+                                        <th>{% translate "Acciones" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task in tasks %}
+                                        <tr>
+                                            <td>{{ task.description }}</td>
+                                            <td>
+                                                <span class="badge {% if task.status.is_final %}bg-success{% else %}bg-primary{% endif %}">
+                                                    {{ task.status.name }}
+                                                </span>
+                                            </td>
+                                            <td>{{ task.due_date|default:"-" }}</td>
+                                            <td>{{ task.order }}</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{% url 'projects:task-update' task.pk %}"
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        {% translate "Editar" %}
+                                                    </a>
+                                                    <a href="{% url 'projects:task-delete' task.pk %}"
+                                                       class="btn btn-sm btn-outline-danger"
+                                                       onclick="return confirm('{% translate "¿Está seguro de que desea eliminar esta tarea?" %}')">
+                                                        {% translate "Eliminar" %}
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-center text-muted">
+                            {% translate "No hay tareas registradas para este proyecto." %}
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

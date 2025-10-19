@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}Nuevo Estado de Proyecto{% endblock %}
+
+{% block content %}
+<div class="modal-dialog">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">Nuevo Estado de Proyecto</h5>
+            {% if not request.headers.HX-Request %}
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            {% endif %}
+        </div>
+        <form method="post" {% if request.headers.HX-Request %}hx-post="{{ request.path }}" hx-target="#statusModal"{% endif %}>
+            <div class="modal-body">
+                {% csrf_token %}
+                {% bootstrap_form form %}
+            </div>
+            <div class="modal-footer">
+                {% if not request.headers.HX-Request %}
+                <a href="{{ request.GET.next|default:'/' }}" class="btn btn-secondary">Cancelar</a>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">Guardar Estado</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends 'contabilidad/menu.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h6 class="text-center text-block">Datos del Año</h6>
+    <!-- Indicadores anuales -->
+    <div class="row text-white mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary text-center" >
+                <div class="card-body">
+                  <h4 class="card-text text-primary">Presupuesto: {{ presupuesto_salario|floatformat:2 }}€</h4>
+                  <p class="card-title">Ingresos del Año</p>
+                  <h3 class="card-text text-primary">Real: {{ ingresos_totales|floatformat:2 }}€</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-danger text-center">
+                <div class="card-body">
+                    <h4 class="card-text text-danger">Presupuesto: {{ presupuesto_otros|floatformat:2 }}€</h4>
+                    <p class="card-title">Gastos del Año</p>
+                    <h3 class="card-text text-danger">Real: {{ gastos_totales|floatformat:2 }}€</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success text-center">
+                <div class="card-body">
+                    <h4 class="card-text text-success">Presupuesto: {{ presupuesto_beneficio|floatformat:2 }}€</h4>
+                    <p class="card-title">Beneficio Anual</p>
+                    <h3 class="card-text text-success">Real: {{ beneficio_total|floatformat:2 }}€</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <h6 class="text-center text-block">Datos de {{mes_actual}}</h6>
+    <!-- Indicadores mensuales -->
+    <div class="row text-white mb-4">
+        <div class="col-md-4">
+            <div class="card border-info text-center">
+                <div class="card-body">
+                    <h3 class="text-info">{{ ingreso_mes|floatformat:2 }}€</h3>
+                    <p class="card-title">Ingresos de {{mes_actual}}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning text-center">
+                <div class="card-body">
+                    <h3 class="text-warning">{{ gastos_mes|floatformat:2 }}€</h3>
+                    <p class="card-title">Gastos de {{mes_actual}}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success text-center">
+                <div class="card-body">
+                    <h3 class="text-success">{{ beneficio_mes|floatformat:2 }}€</h3>
+                    <p class="card-title">Beneficio de {{mes_actual}}</p>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row">
+        <!-- Gráfico de ingresos vs gastos mensuales -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Ingresos vs Gastos de {{mes_actual}}</h5>
+                    <canvas id="chartIngresosGastos"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Tabla de categorías -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Categorías</h5>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th>Ejecutado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for categoria in importes_por_categoria %}
+                            <tr>
+                                <td>{{ categoria.categoria__nombre }}</td>
+                                <td>{{ categoria.total|floatformat:2 }}€</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Datos para el gráfico de ingresos vs gastos
+    const ctx1 = document.getElementById('chartIngresosGastos').getContext('2d');
+    const ingresosGastosChart = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+            labels: ['Ingresos', 'Gastos'],
+            datasets: [{
+                label: 'Monto (€)',
+                data: [{{ ingreso_mes|floatformat:2 }}, {{ gastos_mes|floatformat:2 }}],
+                backgroundColor: ['rgb(54, 162, 235)', 'rgb(255, 99, 132)'],
+            }]
+        }
+    });
+</script>
+{% endblock %}

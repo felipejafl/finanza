@@ -1,0 +1,15 @@
+{% extends 'contabilidad/menu.html' %}
+
+{% load django_bootstrap5 %}
+
+{% block title %}Crear Cuenta Contable{% endblock %}
+
+{% block content %}
+    <h1>Crear Cuenta Contable</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        <button type="submit" class="btn btn-primary">Guardar</button>
+    </form>
+{% endblock %}

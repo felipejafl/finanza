@@ -1,0 +1,50 @@
+{% extends 'contabilidad/menu.html' %}
+
+{% load static %}
+{% block content %}
+<h1>Reporte de Gastos Deducibles (Contexto España)</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Categoría de Gasto Deducible</th>
+            <th>Importe Total Deducible</th>
+            <th>Porcentaje de Gastos Deducibles Totales</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for categoria in gastos_por_categoria %}
+        <tr>
+            <td>{{ categoria.nombre_categoria }}</td>
+            <td>{{ categoria.importe_total_deducible }}</td>
+            <td>{{ categoria.porcentaje_deducible_total_gastos|floatformat:2 }}%</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td><strong>Total Gastos Deducibles</strong></td>
+            <td><strong>{{ total_gastos_deducibles }}</strong></td>
+            <td><strong>100%</strong></td>
+        </tr>
+    </tbody>
+</table>
+
+    <canvas id="graficoGastosDeducibles" width="400" height="400"></canvas>
+    
+{% endblock %}
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('graficoGastosDeducibles').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: [{% for categoria in gastos_por_categoria %}'{{ categoria.nombre_categoria }}',{% endfor %}],
+            datasets: [{
+                data: [{% for categoria in gastos_por_categoria %}{{ categoria.importe_total_deducible }},{% endfor %}],
+                backgroundColor: [ /* Colores para cada categoría */ ]
+            }]
+        },
+        options: { /* Opciones del gráfico */ }
+    });
+</script>
+
+{% endblock %}

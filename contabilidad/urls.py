@@ -1,6 +1,7 @@
 from django.urls import path
 from django.conf.urls.static import static
 from django.conf import settings
+from django.shortcuts import render  # Importación correcta de render
 
 from .views import (
     inicio,
@@ -32,8 +33,12 @@ from .views import (
     presupuesto_eliminar,
     cargar_ticket,
     guardar_transacciones,
+    export_model_to_csv,
+    import_model_from_csv,
+    export_all_to_csv,
+    import_all_from_csv,
 )
-
+app_name = 'contabilidad'
 urlpatterns = [
     path('', inicio, name='inicio'),
 
@@ -69,5 +74,11 @@ urlpatterns = [
     path('reportes/reporte_gastos_deducibles/', reporte_gastos_deducibles, name='reporte_gastos_deducibles'),
     path('reportes/reporte_iva/', reporte_iva, name='reporte_iva'),
     path('reportes/reporte_retenciones_irpf/', reporte_retenciones_irpf, name='reporte_retenciones_irpf'),
+
+    path('export/<str:model_name>/', export_model_to_csv, name='export_model_to_csv'),
+    path('import/<str:model_name>/', import_model_from_csv, name='import_model_from_csv'),
+    path('export-import/', lambda request: render(request, 'contabilidad/export_import.html'), name='export_import'),
+    path('export-all/', export_all_to_csv, name='export_all_to_csv'),
+    path('import-all/', import_all_from_csv, name='import_all_from_csv'),
     
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

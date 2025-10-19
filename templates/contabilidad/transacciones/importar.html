@@ -1,0 +1,16 @@
+{% extends 'contabilidad/menu.html' %}
+
+
+{% block title %}Importar Transacciones Financiera{% endblock %}
+
+{% block content %}
+    <h1>Importar Transacciones Financiera</h1>
+    {% load crispy_forms_tags %}
+    <form method="post">
+        <div class="form-group">
+        {% csrf_token %}
+        {{ form|crispy  }}
+        </div>
+        <button type="submit" class="btn btn-primary">Importar</button>
+    </form>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends 'contabilidad/menu.html' %}
+
+
+{% block content %}
+<h1>Reporte de Presupuesto vs Gasto</h1>
+
+<!-- Formulario para seleccionar mes y año -->
+<form method="get" class="row g-3 mb-4">
+    <div class="col-auto">
+        <label for="mes" class="form-label">Mes</label>
+        <select id="mes" name="mes" class="form-select">
+            {% for mes in meses %}
+            <option value="{{ mes }}" {% if mes == mes_actual %}selected{% endif %}>
+                {{ mes }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <label for="año" class="form-label">Año</label>
+        <select id="año" name="año" class="form-select">
+            {% for año in años %}
+            <option value="{{ año }}" {% if año == año_actual %}selected{% endif %}>
+                {{ año }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+    </div>
+</form>
+
+<!-- Tabla del Reporte -->
+<table class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>Categoría</th>
+            <th>Presupuesto Anual (€)</th>
+            <th>Presupuesto Mensual (€)</th>
+            <th>Ejecución Real (€)</th>
+            <th>Variación (€)</th>
+            <th>% Ejecución</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in reporte %}
+        <tr>
+            <td>{{ item.categoria }}</td>
+            <td>{{ item.presupuesto_anual|floatformat:2 }} €</td>
+            <td>{{ item.presupuesto_mensual|floatformat:2 }} €</td>
+            <td>{{ item.ejecucion_real|floatformat:2 }} €</td>
+            <td class="{% if item.variacion < 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ item.variacion|floatformat:2 }} €
+            </td>
+            <td>{{ item.porcentaje_ejecucion|floatformat:2 }} %</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+
+{% block js %}
+<!-- Gráfico de Presupuesto vs Ejecución -->
+<canvas id="graficoPresupuesto" width="400" height="200"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const ctx = document.getElementById('graficoPresupuesto').getContext('2d');
+        const data = {
+            labels: [{% for item in reporte %}"{{ item.categoria }}",{% endfor %}],
+            datasets: [
+                {
+                    label: 'Presupuesto Mensual (€)',
+                    data: [{% for item in reporte %}{{ item.presupuesto_mensual|floatformat:2 }},{% endfor %}],
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Ejecución Real (€)',
+                    data: [{% for item in reporte %}{{ item.ejecucion_real|floatformat:2 }},{% endfor %}],
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }
+            ]
+        };
+        new Chart(ctx, {
+            type: 'bar',
+            data: data,
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

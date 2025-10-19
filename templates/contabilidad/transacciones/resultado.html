@@ -1,0 +1,74 @@
+{% extends 'contabilidad/menu.html' %}
+
+{% block title %}Resultados del Ticket{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>Resultados del Ticket</h2>
+        <form method="post" action="{% url 'contabilidad:guardar_transacciones' %}">
+            {% csrf_token %}
+            <table id="transacciones-table" class="table table-striped table-bordered">
+                <thead>
+                    <tr>
+                        <th>Cuenta</th>
+                        <th>Fecha</th>
+                        <th>Categoría</th>
+                        <th>Importe</th>
+                        <th>Descripción</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody> 
+                    {% for producto in productos %}
+                    <tr>
+                        <td>
+                            <select name="cuenta_{{ forloop.counter }}" class="form-select">
+                                {% for cuenta in cuentas %}
+                                <option value="{{ cuenta.id }}">{{ cuenta.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="date" name="fecha_{{ forloop.counter }}" value="{{ producto.fecha }}" class="form-control" required>
+                        </td>
+                        <td>
+                            <select name="categoria_{{ forloop.counter }}" class="form-select">
+                                {% for categoria in categorias %}
+                                <option value="{{ categoria.id }}"
+                                    {% if producto.categoria == categoria.nombre %}
+                                        selected
+                                    {% endif %}>
+                                    {{ categoria.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" name="importe_{{ forloop.counter }}" class="form-control" value="{{ producto.precio }}" required>
+                        </td>
+                        <td>
+                            <input type="text" name="descripcion_{{ forloop.counter }}" class="form-control" value="{{ producto.nombre }}" required>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-danger btn-sm eliminar-fila">Eliminar</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-success">Guardar Transacciones</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+    // Función para eliminar filas dinámicamente
+    document.addEventListener('click', function (event) {
+        if (event.target.classList.contains('eliminar-fila')) {
+            event.target.closest('tr').remove();
+        }
+    });
+</script>
+{% endblock %}

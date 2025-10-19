@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block menu %}
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+        <i class="fas fa-calculator me-2"></i>
+        Gestión de Contabilidad
+    </a>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{% url 'contabilidad:cuenta_listar' %}"><i class="fas fa-wallet me-2"></i>Cuentas</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:transaccion_listar' %}"><i class="fas fa-exchange-alt me-2"></i>Transacciones</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:categoria_listar' %}"><i class="fas fa-tags me-2"></i>Categorías</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:presupuesto_listar' %}"><i class="fas fa-chart-line me-2"></i>Presupuestos</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:export_import' %}"><i class="fas fa-file-export me-2"></i>Exportar/Importar Datos</a></li>
+
+        <li class="dropdown-item">
+            <strong>Reportes</strong>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:reporte_financiero' %}"><i class="fas fa-chart-pie me-2"></i>Reporte Financiero</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:reporte_gastos_categoria' %}"><i class="fas fa-list-ul me-2"></i>Reporte Gastos por Categoría</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:reporte_saldo_cuentas_dinamico' %}"><i class="fas fa-balance-scale me-2"></i>Reporte Saldo de Cuentas</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:reporte_presupuesto_mensual' %}"><i class="fas fa-calendar-alt me-2"></i>Reporte Presupuesto vs Gasto</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:reporte_transacciones_filtrado' %}"><i class="fas fa-filter me-2"></i>Reporte Transacciones Filtrado</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:resumen_ingresos_por_tipo' %}"><i class="fas fa-coins me-2"></i>Resumen de Ingresos por Tipo</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:reporte_gastos_deducibles' %}"><i class="fas fa-receipt me-2"></i>Reporte de Gastos Deducibles</a></li>
+        <li><a class="dropdown-item" href="{% url 'contabilidad:reporte_iva' %}"><i class="fas fa-percentage me-2"></i>Reporte de IVA Soportado / Repercutido</a></li>
+    </ul>
+</li>
+{% endblock %}

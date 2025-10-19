@@ -1,18 +1,25 @@
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import JsonResponse
-from django.db.models import Sum, F, Count
-from datetime import datetime, date
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Sum, F, Q
+from datetime import datetime
 from django.contrib import messages
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .serializers import TransaccionSerializer
 # Importar los modelos y formularios
-from .models import Cuenta, Transaccion, Categoria, Presupuesto
-from .forms import CuentaForm, PresupuestoForm, CategoriaForm, TransaccionForm, TicketImagenForm
+from .models import Cuenta, Transaccion, Categoria, Presupuesto, TicketImagen
+from .forms import CuentaForm, PresupuestoForm, CategoriaForm, TransaccionForm, TicketImagenForm, TransaccionFilterForm
 # Importar la librería IA de Google
 import os
 import google.generativeai as genai
+from PIL import Image
+import traceback  
 import json
+from zipfile import ZipFile
+from io import BytesIO
+from django.template.defaultfilters import floatformat # Importa floatformat desde views para usarlo en Python
+from decimal import Decimal
+from django.db.models.functions import TruncMonth
 
 #Dashboard de inicio
 def inicio(request):
@@ -31,7 +38,7 @@ def inicio(request):
         11: 'Noviembre',
         12: 'Diciembre'
     }
-    hoy = date.today()
+    hoy = datetime.today()
     mes_actual = MESES[hoy.month]
 
     cuentas = Cuenta.objects.filter(tipo='ingreso')
@@ -44,8 +51,8 @@ def inicio(request):
     beneficio_mes = calcular_beneficio(mes=datetime.now().month, anio=datetime.now().year)
     
 
-    presupuesto_salario = Presupuesto.objects.filter(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum']
-    presupuesto_otros = Presupuesto.objects.exclude(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum']
+    presupuesto_salario = Presupuesto.objects.filter(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum'] or 0
+    presupuesto_otros = Presupuesto.objects.exclude(categoria__nombre='Salario').aggregate(Sum('importe'))['importe__sum'] or 0
     presupuesto_beneficio = presupuesto_salario - presupuesto_otros
     importes_por_categoria = calcular_importes_por_categoria(mes=datetime.now().month, anio=datetime.now().year)
     context = {
@@ -80,7 +87,7 @@ def cuenta_crear(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Cuenta creada correctamente.')
-            return redirect('cuenta_listar')
+            return redirect('contabilidad:cuenta_listar')
     else:
         form = CuentaForm()
 
@@ -93,7 +100,7 @@ def cuenta_editar(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, 'Cuenta editada correctamente.')
-            return redirect('cuenta_listar')
+            return redirect('contabilidad:cuenta_listar')
     else:
         form = CuentaForm(instance=cuenta)
 
@@ -106,7 +113,7 @@ def cuenta_eliminar(request, pk):
     cuenta = get_object_or_404(Cuenta, pk=pk)
     cuenta.delete()
     messages.success(request, 'Cuenta eliminada correctamente.')
-    return redirect('cuenta_listar')
+    return redirect('contabilidad:cuenta_listar')
 
 # Transacciones
 class TransaccionListAPIView(APIView):
@@ -139,7 +146,7 @@ def transaccion_crear(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Transacción creada correctamente.')
-            return redirect('transaccion_listar')
+            return redirect('contabilidad:transaccion_listar')
     else:
         form = TransaccionForm()
 
@@ -155,7 +162,7 @@ def transaccion_editar(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, 'Transacción editada correctamente.')
-            return redirect('transaccion_listar')
+            return redirect('contabilidad:transaccion_listar')
     else:
         form = TransaccionForm(instance=transaccion)
 
@@ -168,7 +175,7 @@ def transaccion_eliminar(request, pk):
     transaccion = get_object_or_404(Transaccion, pk=pk)
     transaccion.delete()
     messages.success(request, 'Transacción eliminada correctamente.')
-    return redirect('transaccion_listar')
+    return redirect('contabilidad:transaccion_listar')
 
 # Configura tu clave API
 api_key = os.environ.get("GEMINI_API_KEY") # toma el api de una variable de entorno que se ha creado previamente con la clave
@@ -182,78 +189,121 @@ except AttributeError:
     # Podrías lanzar una excepción o deshabilitar la función
     pass # O manejarlo como prefieras
 
-def enviar_a_IA(imagen_path):
-    
+def enviar_a_IA(archivo_path: str) -> list | None:
     """
-    Envía una imagen de un comprobante de compra a Gemini y extrae los productos y precios en formato JSON.
+    Envía una imagen o un PDF de un comprobante de compra a Gemini y extrae los productos y precios en formato JSON.
 
     Args:
-        imagen_path (str): La ruta al archivo de imagen del comprobante.
+        archivo_path (str): Ruta al archivo (imagen o PDF) del comprobante.
 
     Returns:
-        str: La respuesta de Gemini en formato JSON o None si hay un error.
+        list | None: Lista de productos en formato JSON (list) o None si ocurre un error.
     """
     try:
-        # Subir la imagen a Gemini
-        file = genai.upload_file(imagen_path, mime_type="image/jpeg")  # Asume que es JPEG, ajusta si es necesario
+        # 1. Detectar la extensión del archivo
+        _, ext = os.path.splitext(archivo_path)
+        ext = ext.lower()
 
-        # Configuración del modelo
-        generation_config = {
-            "temperature": 0.3,  # Ajusta la temperatura para controlar la creatividad
+        # 2. Configuración del modelo (idéntica a tu versión original)
+        generation_config_dict = {
+            "temperature": 0.3,
             "top_p": 0.95,
             "top_k": 40,
             "max_output_tokens": 8192,
-            "response_mime_type": "text/plain",
+            "response_mime_type": "application/json",
         }
-        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+
+        # 3. Obtener las categorías del sistema para el prompt
         categorias = Categoria.objects.all()
         nombres_categorias = ", ".join([cat.nombre for cat in categorias])
-        # Crear el mensaje para Gemini
+
+        # 4. Crear el mensaje que se enviará al modelo
         prompt = f"""
-        A partir de la imagen adjunta de un ticket de compra, devuélveme una lista de productos con el nombre del producto, el precio y la categoria correspondiente del siguiente listado: {nombres_categorias} 
+        A partir del archivo adjunto (imagen o PDF) de un ticket de compra, 
+        devuélveme una lista de productos con la fecha de la compra, el nombre del producto, 
+        el precio y la categoría correspondiente del siguiente listado: {nombres_categorias}.
+
         El formato de la respuesta debe ser estrictamente JSON, con este esquema:
+
         [
-            {{"nombre": "Producto A", "precio": 10.50, "categoria": "Alimentos"}},
-            {{"nombre": "Producto B", "precio": 20.00, "categoria": "Articulos de limpieza"}},
+            {{"fecha": "2023-01-01", "nombre": "Producto A", "precio": 10.50, "categoria": "Alimentos"}},
+            {{"fecha": "2023-01-01", "nombre": "Producto B", "precio": 20.00, "categoria": "Artículos de limpieza"}}
         ]
         """
 
-        # Iniciar la conversación con Gemini
-        #chat_session = model.start_chat(history=[{"role": "user", "parts": [file, prompt]}])
+        # 5. Inicializar el modelo
+        model = genai.GenerativeModel('gemini-2.5-flash')
 
-        # Obtener la respuesta de Gemini
-        response = model.generate_content([file, prompt], generation_config={'response_mime_type':'application/json'})  # No necesitas pasar un mensaje adicional
+        # 6. Preparar el contenido según el tipo de archivo
+        if ext in ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff']:
+            # 📷 Imagen — se abre con Pillow
+            img = Image.open(archivo_path)
+            contents = [img, prompt]
 
-        # Devolver la respuesta
+        elif ext == '.pdf':
+            import base64
+            with open(archivo_path, "rb") as f:
+                pdf_bytes = f.read()
+
+            contents = [
+                {
+                    "inline_data": {
+                        "mime_type": "application/pdf",
+                        "data": base64.b64encode(pdf_bytes).decode("utf-8")
+                    }
+                },
+                prompt
+            ]
+
+        else:
+            raise ValueError(f"Tipo de archivo no soportado: {ext}")
+
+        # 7. Generar el contenido con Gemini
+        response = model.generate_content(
+            contents=contents,
+            generation_config=generation_config_dict
+        )
+
+        # 8. Intentar convertir la respuesta a JSON
         return json.loads(response.text)
 
     except Exception as e:
-        print(f"Error al enviar la imagen a Gemini: {e}")
+        print(f"❌ Error al enviar el archivo a Gemini: {e}")
+        traceback.print_exc()  # ✅ ahora funciona correctamente
         return None
 
+
 def cargar_ticket(request):
+    """
+    Vista para cargar un ticket (imagen o PDF), enviarlo al modelo Gemini
+    y mostrar el resultado con los productos detectados.
+    """
     if request.method == 'POST':
         form = TicketImagenForm(request.POST, request.FILES)
         if form.is_valid():
             ticket = form.save()
-            # Extraer productos, precios de la imagen y sugiere una categoria del ticket
+
+            # Procesar el archivo con IA (ahora puede ser imagen o PDF)
             productos = enviar_a_IA(ticket.imagen.path)
-            # Eliminar la imagen después de procesarla
+
+            # Eliminar el archivo después de procesarlo
             if os.path.exists(ticket.imagen.path):
                 os.remove(ticket.imagen.path)
+
             # Obtener cuentas y categorías para los selects
             cuentas = Cuenta.objects.all()
-            # Ordenar las cuentas, priorizando las de tipo "gasto"
-            cuentas = sorted(cuentas, key=lambda cuenta: cuenta.tipo != 'gasto')
+            cuentas = sorted(cuentas, key=lambda c: c.tipo != 'gasto')
             categorias = Categoria.objects.all()
+
             return render(request, 'contabilidad/transacciones/resultado.html', {
                 'productos': productos,
                 'cuentas': cuentas,
                 'categorias': categorias,
-                'date': date.today().strftime('%Y-%m-%d')
+                'date': datetime.today().strftime('%Y-%m-%d')
             })
     else:
         form = TicketImagenForm()
+
     return render(request, 'contabilidad/transacciones/cargar_ticket.html', {'form': form})
 
 def guardar_transacciones(request):
@@ -276,7 +326,7 @@ def guardar_transacciones(request):
                     cuenta_id=cuenta_id,
                     categoria_id=categoria_id
                 )
-        return redirect('transaccion_listar')
+        return redirect('contabilidad:transaccion_listar')
 
 # Categorías
 def categoria_listar(request):
@@ -292,7 +342,7 @@ def categoria_crear(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Categoría creada correctamente.')
-            return redirect('categoria_listar')
+            return redirect('contabilidad:categoria_listar')
     else:
         form = CategoriaForm()
 
@@ -308,7 +358,7 @@ def categoria_editar(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, 'Categoría editada correctamente.')
-            return redirect('categoria_listar')
+            return redirect('contabilidad:categoria_listar')
     else:
         form = CategoriaForm(instance=categoria)
 
@@ -321,7 +371,7 @@ def categoria_eliminar(request, pk):
     categoria = get_object_or_404(Categoria, pk=pk)
     categoria.delete()
     messages.success(request, 'Categoría eliminada correctamente.')
-    return redirect('categoria_listar')
+    return redirect('contabilidad:categoria_listar')
 
 # Presupuestos
 def presupuesto_listar(request):
@@ -352,7 +402,7 @@ def presupuesto_crear(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Presupuesto creada correctamente.')
-            return redirect('presupuesto_listar')
+            return redirect('contabilidad:presupuesto_listar')
     else:
         form = PresupuestoForm()
 
@@ -368,7 +418,7 @@ def presupuesto_editar(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, 'Presupuesto editada correctamente.')
-            return redirect('presupuesto_listar')
+            return redirect('contabilidad:presupuesto_listar')
     else:
         form = PresupuestoForm(instance=presupuesto)
 
@@ -381,7 +431,7 @@ def presupuesto_eliminar(request, pk):
     presupuesto = get_object_or_404(Presupuesto, pk=pk)
     presupuesto.delete()
     messages.success(request, 'Presupuesto eliminada correctamente.')
-    return redirect('presupuesto_listar')
+    return redirect('contabilidad:presupuesto_listar')
 
 #Reportes
 
@@ -436,13 +486,10 @@ def calcular_importes_por_categoria(mes=None, anio=None):
     return importes_por_categoria
 
 # 5. Reporte financiero mensual
-from django.db.models.functions import TruncMonth
-import locale  # Importamos la biblioteca locale
-
 def reporte_financiero(request):
     """
     Vista para generar el reporte financiero mensual de ingresos vs gastos, con meses en español.
-    """
+    
     # Establecer la configuración regional a español (España) - Asegúrate de tener el locale instalado en tu sistema
     try:
         locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8') # Intenta con es_ES.UTF-8
@@ -451,7 +498,7 @@ def reporte_financiero(request):
             locale.setlocale(locale.LC_TIME, 'es_ES') # Si UTF-8 falla, intenta con es_ES sin encoding
         except locale.Error:
             locale.setlocale(locale.LC_TIME, '') # Si falla es_ES, usa la configuración regional por defecto del sistema
-
+"""
     transacciones_ingresos = Transaccion.objects.filter(cuenta__tipo='ingreso')
     transacciones_gastos = Transaccion.objects.filter(cuenta__tipo='gasto')
 
@@ -488,10 +535,6 @@ def reporte_financiero(request):
     return render(request, 'contabilidad/reportes/reporte_financiero.html', context)
 
 # 6. Reporte de gastos por categoría
-from django.template.defaultfilters import floatformat # Importa floatformat desde views para usarlo en Python
-
-from django.utils import timezone
-
 def reporte_gastos_por_categoria(request):
     """
     Genera un reporte de gastos por categoría, opcionalmente filtrado por rango de fechas.
@@ -511,8 +554,8 @@ def reporte_gastos_por_categoria(request):
             )
         except ValueError:
             # Si las fechas no son válidas, mostrar reporte del mes actual
-            fecha_inicio = timezone.now().date().replace(day=1)
-            fecha_fin = timezone.now().date()
+            fecha_inicio = datetime.now().date().replace(day=1)
+            fecha_fin = datetime.now().date()
             transacciones_gasto = Transaccion.objects.filter(
                 cuenta__tipo='gasto',
                 fecha__month=fecha_fin.month,
@@ -522,8 +565,8 @@ def reporte_gastos_por_categoria(request):
             fecha_fin_str = fecha_fin.strftime('%Y-%m-%d') # Formato para el input date
     else:
         # Por defecto, reporte del mes actual
-        fecha_inicio = timezone.now().date().replace(day=1)
-        fecha_fin = timezone.now().date()
+        fecha_inicio = datetime.now().date().replace(day=1)
+        fecha_fin = datetime.now().date()
         transacciones_gasto = Transaccion.objects.filter(
             cuenta__tipo='gasto',
             fecha__month=fecha_fin.month,
@@ -608,7 +651,7 @@ def reporte_saldo_cuentas_dinamico(request):
 # 8. Reporte de presupuesto mensual vs gastos reales
 def reporte_presupuesto_mensual(request):
     # Obtener mes y año actual por defecto
-    hoy = date.today()
+    hoy = datetime.today()
     mes_actual = int(request.GET.get('mes', hoy.month))  # Mes seleccionado o actual
     año_actual = int(request.GET.get('año', hoy.year))  # Año seleccionado o actual
 
@@ -654,9 +697,6 @@ def reporte_presupuesto_mensual(request):
     return render(request, 'contabilidad/reportes/presupuesto_mensual.html', context)
 
 # 9. Reporte de transacciones filtrado
-from .forms import TransaccionFilterForm
-from django.db.models import Q
-
 def reporte_transacciones_filtrado(request):
     form = TransaccionFilterForm(request.GET) # Usamos request.GET para formularios de filtro
 
@@ -718,11 +758,11 @@ def resumen_ingresos_por_tipo(request):
         except ValueError:
             return HttpResponse("Error: Formato de fecha inválido. Use AAAA-MM-DD.", status=400) # Manejo de error de formato de fecha
     else:
-        today = date.today()
+        today = datetime.today()
         mes_actual = today.month
         anio_actual = today.year
-        fecha_inicio = date(anio_actual, mes_actual, 1) # Primer día del mes actual
-        fecha_fin = date(anio_actual, mes_actual, today.day) # Día actual del mes actual
+        fecha_inicio = datetime(anio_actual, mes_actual, 1) # Primer día del mes actual
+        fecha_fin = datetime(anio_actual, mes_actual, today.day) # Día actual del mes actual
         transacciones_ingreso = Transaccion.objects.filter(
             cuenta__tipo='ingreso',
             fecha__month=mes_actual,
@@ -794,8 +834,6 @@ def reporte_gastos_deducibles(request):
 
     return render(request, 'contabilidad/reportes/reporte_gastos_deducibles.html', context)
 
-from decimal import Decimal
-
 # 12. Reporte de IVA
 def reporte_iva(request):
     # 1. Definir el período del reporte (TRIMESTRE ACTUAL por defecto)
@@ -839,25 +877,25 @@ def reporte_iva(request):
 
 # 13. Reporte de Retenciones de IRPF
 def obtener_periodo_trimestre_actual():
-    hoy = date.today()
+    hoy = datetime.today()
     mes_actual = hoy.month
     anio_actual = hoy.year
 
     if 1 <= mes_actual <= 3:
-        inicio_trimestre = date(anio_actual, 1, 1)
-        fin_trimestre = date(anio_actual, 3, 31)
+        inicio_trimestre = datetime(anio_actual, 1, 1)
+        fin_trimestre = datetime(anio_actual, 3, 31)
         periodo_reporte = f"1er Trimestre {anio_actual}"
     elif 4 <= mes_actual <= 6:
-        inicio_trimestre = date(anio_actual, 4, 1)
-        fin_trimestre = date(anio_actual, 6, 30)
+        inicio_trimestre = datetime(anio_actual, 4, 1)
+        fin_trimestre = datetime(anio_actual, 6, 30)
         periodo_reporte = f"2º Trimestre {anio_actual}"
     elif 7 <= mes_actual <= 9:
-        inicio_trimestre = date(anio_actual, 7, 1)
-        fin_trimestre = date(anio_actual, 9, 30)
+        inicio_trimestre = datetime(anio_actual, 7, 1)
+        fin_trimestre = datetime(anio_actual, 9, 30)
         periodo_reporte = f"3er Trimestre {anio_actual}"
     else: # 10 <= mes_actual <= 12
-        inicio_trimestre = date(anio_actual, 10, 1)
-        fin_trimestre = date(anio_actual, 12, 31)
+        inicio_trimestre = datetime(anio_actual, 10, 1)
+        fin_trimestre = datetime(anio_actual, 12, 31)
         periodo_reporte = f"4º Trimestre {anio_actual}"
 
     return inicio_trimestre, fin_trimestre, periodo_reporte
@@ -869,27 +907,26 @@ def reporte_retenciones_irpf(request):
     inicio_trimestre, fin_trimestre, periodo_reporte = obtener_periodo_trimestre_actual()
 
     # 1. Definir categorías que generan retención de IRPF (ADAPTAR A TUS CATEGORÍAS REALES)
-    categorias_con_retencion = ["Servicios Profesionales", "Alquileres"]
+    nombres_categorias_con_retencion = ["Servicios Profesionales", "Alquileres"]
+    categorias_con_retencion = Categoria.objects.filter(nombre__in=nombres_categorias_con_retencion)
 
     # 2. Acceder y filtrar transacciones
     transacciones = Transaccion.objects.filter(
         fecha__range=(inicio_trimestre, fin_trimestre), # Filtrar por período
-        categoria__in=categorias_con_retencion # Filtrar por categoría
+        categoria__in=categorias_con_retencion # Filtrar por categoría (ahora usando objetos)
     )
 
     reporte_data = []
     total_base_imponible_periodo = 0
     total_importe_retenido_periodo = 0
     porcentaje_retencion = 15 # Porcentaje de retención general (ADAPTAR SI ES NECESARIO)
-    tipo_iva = 0.21 # Tipo de IVA general 21%
+    tipo_iva = Decimal('0.21') # Tipo de IVA general 21%
 
     for transaccion in transacciones:
         # 3. Calcular Base Imponible (asumiendo IVA incluido)
-        base_imponible = transaccion.importe / (1 + tipo_iva)
-
+        base_imponible = transaccion.importe / (Decimal('1') + tipo_iva)
         # 4. Calcular Importe Retenido
-        importe_retenido = base_imponible * (porcentaje_retencion / 100)
-
+        importe_retenido = base_imponible * (Decimal(porcentaje_retencion) / Decimal('100'))
         reporte_data.append({
             'fecha': transaccion.fecha,
             'categoria': transaccion.categoria,
@@ -898,7 +935,6 @@ def reporte_retenciones_irpf(request):
             'porcentaje_retencion': porcentaje_retencion,
             'importe_retenido': importe_retenido,
         })
-
         total_base_imponible_periodo += base_imponible
         total_importe_retenido_periodo += importe_retenido
 
@@ -909,6 +945,85 @@ def reporte_retenciones_irpf(request):
         'total_importe_retenido_periodo': total_importe_retenido_periodo,
         'porcentaje_retencion_aplicado': porcentaje_retencion, # Pasar el porcentaje a la plantilla
     }
-
-   
     return render(request, 'contabilidad/reportes/reporte_retenciones_irpf.html', context)
+
+def export_model_to_csv(request, model_name):
+    model_map = {
+        'cuenta': Cuenta,
+        'categoria': Categoria,
+        'transaccion': Transaccion,
+        'presupuesto': Presupuesto,
+        'ticketimagen': TicketImagen
+    }
+    model = model_map.get(model_name.lower())
+    if not model:
+        return HttpResponse("Modelo no válido.", status=400)
+
+    csv_data = model.export_to_csv()
+    response = HttpResponse(csv_data, content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{model_name}.csv"'
+    return response
+
+def import_model_from_csv(request, model_name):
+    if request.method == 'POST' and 'csv_file' in request.FILES:
+        csv_file = request.FILES['csv_file']
+        model_map = {
+            'cuenta': Cuenta,
+            'categoria': Categoria,
+            'transaccion': Transaccion,
+            'presupuesto': Presupuesto,
+            'ticketimagen': TicketImagen
+        }
+        model = model_map.get(model_name.lower())
+        if not model:
+            return HttpResponse("Modelo no válido.", status=400)
+
+        csv_data = csv_file.read().decode('utf-8')
+        model.import_from_csv(csv_data)
+        return HttpResponse(f"Datos importados correctamente para el modelo {model_name}.")
+    return HttpResponse("Método no permitido o archivo CSV no proporcionado.", status=400)
+
+def export_all_to_csv(request):
+    """
+    Exporta todos los modelos a un archivo ZIP que contiene un CSV por modelo.
+    """
+    buffer = BytesIO()
+    with ZipFile(buffer, 'w') as zip_file:
+        # Exportar cada modelo a un archivo CSV
+        models = {
+            'cuentas.csv': Cuenta.export_to_csv(),
+            'categorias.csv': Categoria.export_to_csv(),
+            'transacciones.csv': Transaccion.export_to_csv(),
+            'presupuestos.csv': Presupuesto.export_to_csv(),
+            'tickets.csv': TicketImagen.export_to_csv(),
+        }
+        for filename, csv_data in models.items():
+            zip_file.writestr(filename, csv_data)
+    
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="export_all.zip"'
+    return response
+
+def import_all_from_csv(request):
+    """
+    Importa todos los modelos desde un archivo ZIP que contiene un CSV por modelo.
+    """
+    if request.method == 'POST' and 'zip_file' in request.FILES:
+        zip_file = request.FILES['zip_file']
+        with ZipFile(zip_file) as zf:
+            # Importar cada modelo desde su archivo CSV
+            for filename in zf.namelist():
+                csv_data = zf.read(filename).decode('utf-8')
+                if filename == 'cuentas.csv':
+                    Cuenta.import_from_csv(csv_data)
+                elif filename == 'categorias.csv':
+                    Categoria.import_from_csv(csv_data)
+                elif filename == 'transacciones.csv':
+                    Transaccion.import_from_csv(csv_data)
+                elif filename == 'presupuestos.csv':
+                    Presupuesto.import_from_csv(csv_data)
+                elif filename == 'tickets.csv':
+                    TicketImagen.import_from_csv(csv_data)
+        return HttpResponse("Datos importados correctamente.")
+    return HttpResponse("Método no permitido o archivo ZIP no proporcionado.", status=400)

@@ -1,0 +1,17 @@
+{% extends 'contabilidad/menu.html' %}
+
+
+{% block title %}Cargar Ticket{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <h2>Cargar Ticket</h2>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary">Procesar Ticket</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
